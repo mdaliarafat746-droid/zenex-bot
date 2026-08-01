@@ -13,10 +13,11 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 BOT_TOKEN = "8998738234:AAGpV1zS4miYRC9AxNpSHvJNyWPgkfI9-U4"
 API_KEY = "ZNX_5GJKQ6O8MT1F20MSW2G9K4V9"
 
-# আপনার টেলিগ্রাম চ্যাট আইডি এখানে বসিয়ে দিন (যাতে ওটিপি আসলে সরাসরি আপনার ইনবক্সে চলে আসে)
-ADMIN_CHAT_ID = "YOUR_TELEGRAM_CHAT_ID"  # উদাহরণ: "123456789"
+# আপনার টেলিগ্রাম চ্যাট আইডি এখানে বসানো হয়েছে
+ADMIN_CHAT_ID = "6470943912"  
+ADMIN_PROFILE = "https://t.me/Mdarafatali26"
 
-# ইতিমধ্যে যে ওটিপিগুলো পাঠানো হয়েছে তা ট্র্যাক করার জন্য সেট (যেন ডাবল মেসেজ না যায়)
+# ইতিমধ্যে যে ওটিপিগুলো পাঠানো হয়েছে তা ট্র্যাক করার জন্য সেট
 notified_otps = set()
 
 # দেশের নাম বা সার্ভিস অনুযায়ী সঠিক ফ্লাগ ইমোজি নির্ধারণ করার ফাংশন
@@ -54,8 +55,7 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
             
             for item in otps_list:
                 nid = item.get('nid')
-                # যদি এই ওটিপিটি আগে পাঠানো না হয়ে থাকে এবং ADMIN_CHAT_ID সেট করা থাকে
-                if nid and nid not in notified_otps and ADMIN_CHAT_ID != "YOUR_TELEGRAM_CHAT_ID":
+                if nid and nid not in notified_otps:
                     notified_otps.add(nid)
                     
                     num = item.get('number')
@@ -69,10 +69,10 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
                         f"🚨 **নতুন OTP চলে এসেছে!** 🚨\n\n"
                         f"{flag} নম্বর: `{num}`\n"
                         f"📡 অপারেটর: {op}\n"
-                        f"💬 কোড/এসএমএস:\n`{otp_text}`"
+                        f"💬 কোড/এসএমএস:\n`{otp_text}`\n\n"
+                        f"👤 প্রোফাইল: [Arafat Ali]({ADMIN_PROFILE})"
                     )
                     
-                    # সরাসরি আপনার টেলিগ্রাম ইনবক্সে ওটিপি পাঠিয়ে দেওয়া
                     await context.bot.send_message(
                         chat_id=ADMIN_CHAT_ID,
                         text=alert_msg,
@@ -172,7 +172,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif text == "💰 Balance":
         await update.message.reply_text("Zenex API কানেকশন সক্রিয় রয়েছে।")
     elif text == "👤 Profile":
-        await update.message.reply_text(f"আপনার টেলিগ্রাম আইডি: {update.effective_user.id}")
+        await update.message.reply_text(
+            f"আপনার টেলিগ্রাম আইডি: {update.effective_user.id}\n"
+            f"যোগাযোগ: {ADMIN_PROFILE}"
+        )
     else:
         await update.message.reply_text(f"আপনি সিলেক্ট করেছেন: {text}")
 
@@ -248,7 +251,6 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
-    # JobQueue ব্যবহার করে অটো ওটিপি চেকার ব্যাকগ্রাউন্ডে চালু করা (প্রতি ৫ সেকেন্ড পর পর)
     job_queue = app.job_queue
     job_queue.run_repeating(auto_otp_checker, interval=5, first=3)
 
