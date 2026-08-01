@@ -13,10 +13,13 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 BOT_TOKEN = "8998738234:AAGpV1zS4miYRC9AxNpSHvJNyWPgkfI9-U4"
 API_KEY = "ZNX_5GJKQ6O8MT1F20MSW2G9K4V9"
 
-# ইতিমধ্যে যে ওটিপিগুলো পাঠানো হয়েছে তা ট্র্যাক করার জন্য সেট (যেন ডাবল মেসেজ না যায়)
+# আপনার টেলিগ্রাম চ্যাট আইডি এখানে বসিয়ে দিন (যাতে ওটিপি আসলে সরাসরি আপনার ইনবক্সে চলে আসে)
+ADMIN_CHAT_ID = "YOUR_TELEGRAM_CHAT_ID"  # উদাহরণ: "123456789"
+
+# ইতিমধ্যে যে ওটিপিগুলো পাঠানো হয়েছে তা ট্র্যাক করার জন্য সেট (যেন ডাবল মেসেজ না যায়)
 notified_otps = set()
 
-# দেশের নাম বা সার্ভিস অনুযায়ী সঠিক ফ্লাগ ইমোজি নির্ধারণ করার ফাংশন
+# দেশের নাম বা সার্ভিস অনুযায়ী সঠিক ফ্লাগ ইমোজি নির্ধারণ করার ফাংশন
 def get_flag_by_text(text):
     text = text.lower()
     if "egypt" in text:
@@ -36,7 +39,7 @@ def get_flag_by_text(text):
     else:
         return "🌐"
 
-# ব্যাকগ্রাউন্ডে স্বয়ংক্রিয়ভাবে ওটিপি চেক করার ফাংশন (প্রতি ৫ সেকেন্ড পর পর চলবে)
+# ব্যাকগ্রাউন্ডে স্বয়ংক্রিয়ভাবে ওটিপি চেক করার ফাংশন (প্রতি ৫ সেকেন্ড পর পর চলবে)
 async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
     try:
         response = requests.get(
@@ -51,8 +54,8 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
             
             for item in otps_list:
                 nid = item.get('nid')
-                # যদি এই ওটিপিটি আগে পাঠানো না হয়ে থাকে
-                if nid and nid not in notified_otps:
+                # যদি এই ওটিপিটি আগে পাঠানো না হয়ে থাকে এবং ADMIN_CHAT_ID সেট করা থাকে
+                if nid and nid not in notified_otps and ADMIN_CHAT_ID != "YOUR_TELEGRAM_CHAT_ID":
                     notified_otps.add(nid)
                     
                     num = item.get('number')
@@ -69,9 +72,12 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
                         f"💬 কোড/এসএমএস:\n`{otp_text}`"
                     )
                     
-                    # বটের ভেতর যাদের চ্যাট আইডি সেভ আছে তাদের সবাইকে বা নির্দিষ্ট গ্রুপে পাঠানোর ব্যবস্থা
-                    # এখানে যদি কোনো নির্দিষ্ট চ্যাট আইডিতে পাঠাতে চান সেটি দিতে পারেন
-                    # আপাতত জাস্ট সিস্টেম রান রাখছি
+                    # সরাসরি আপনার টেলিগ্রাম ইনবক্সে ওটিপি পাঠিয়ে দেওয়া
+                    await context.bot.send_message(
+                        chat_id=ADMIN_CHAT_ID,
+                        text=alert_msg,
+                        parse_mode="Markdown"
+                    )
     except Exception as e:
         pass
 
@@ -132,7 +138,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     reply_markup=reply_markup
                 )
             else:
-                await loading_msg.edit_text("❌ প্যানেল থেকে রেঞ্জ লোড করতে ব্যর্থ হয়েছে।")
+                await loading_msg.edit_text("❌ প্যানেল থেকে রেঞ্জ লোড করতে ব্যর্থ হয়েছে।")
                 
         except Exception as e:
             await loading_msg.edit_text(f"কানেকশন এরর: {e}")
@@ -159,12 +165,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 else:
                     await loading_msg.edit_text("📭 কোনো নতুন OTP আসেনি।")
             else:
-                await loading_msg.edit_text("❌ ওটিপি ফেচ করতে সমস্যা হয়েছে।")
+                await loading_msg.edit_text("❌ ওটিপি ফেচ করতে সমস্যা হয়েছে।")
         except Exception as e:
             await loading_msg.edit_text(f"এরর: {e}")
             
     elif text == "💰 Balance":
-        await update.message.reply_text("Zenex API কানেকশন সক্রিয় রয়েছে।")
+        await update.message.reply_text("Zenex API কানেকশন সক্রিয় রয়েছে।")
     elif text == "👤 Profile":
         await update.message.reply_text(f"আপনার টেলিগ্রাম আইডি: {update.effective_user.id}")
     else:
@@ -182,7 +188,7 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
         range_value = parts[1]
         service_name = parts[2] if len(parts) > 2 else "Number"
         
-        await query.edit_message_text(text="🔄 প্যানেল থেকে একসাথে ৩টি নম্বর অ্যাসাইন করা হচ্ছে, দয়া করে অপেক্ষা করুন...")
+        await query.edit_message_text(text="🔄 প্যানেল থেকে একসাথে ৩টি নম্বর অ্যাসাইন করা হচ্ছে, দয়া করে অপেক্ষা করুন...")
 
         assigned_numbers = []
         detected_country = service_name
