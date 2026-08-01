@@ -10,20 +10,30 @@ logging.basicConfig(
     level=logging.INFO,
 )
 
-# মূল হ্যান্ডলার ফাংশন যা বাটন বা কমান্ড রিসিভ করে কাজ করবে
-async def handle_number_generation(update: Update, context: ContextTypes.DEFAULT_TYPE):
+# মূল হ্যান্ডলার ফাংশন
+async def handle_bot_actions(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.text:
         return
         
     text = update.message.text.strip()
     
-    # স্ল্যাশ দিয়ে শুরু হওয়া কমান্ড যেমন: `/382671XXX 5` বা `/facebook 10` চেক করা
-    match = re.match(r"^/([^\s]+)\s+(\d+)$", text)
-    if match:
-        service_name = match.group(1)
-        max_limit = int(match.group(2))
+    # ১. যদি বাটন থেকে শুধু "Get Number" লেখাটি আসে
+    if text == "📱 Get Number" or text.lower() == "get number":
+        # এখানে আপনি চাইলে নির্দিষ্ট কোনো ডিফল্ট নম্বর বা রেঞ্জ সেট করে দিতে পারেন
+        # অথবা ব্যবহারকারীকে বলতে পারেন কী করতে হবে
+        generated_num = random.randint(1, 10) # উদাহরণস্বরূপ ১ থেকে ১০ এর মধ্যে
+        await update.message.reply_text(
+            f"📱 আপনার জেনারেট করা র‍্যান্ডম নম্বরটি হলো: *{generated_num}*",
+            parse_mode="Markdown"
+        )
+        return
+
+    # ২. যদি স্ল্যাশযুক্ত কমান্ড বা আইডি ও লিমি트 আসে (যেমন: /382671XXX 5 বা /range 1 50)
+    match_number = re.match(r"^/([^\s]+)\s+(\d+)$", text)
+    if match_number:
+        service_name = match_number.group(1)
+        max_limit = int(match_number.group(2))
         
-        # ১ থেকে ব্যবহারকারীর দেওয়া লিমিটের মধ্যে র‍্যান্ডম নম্বর জেনারেট করা
         generated_num = random.randint(1, max_limit)
         
         await update.message.reply_text(
@@ -31,18 +41,30 @@ async def handle_number_generation(update: Update, context: ContextTypes.DEFAULT
             f"🎲 প্রাপ্ত র‍্যান্ডম নম্বর: *{generated_num}*",
             parse_mode="Markdown"
         )
-    else:
-        # যদি সাধারণ কোনো টেক্সট বা বাটন টেক্সট হয়
-        if text.lower() == "get number":
-            await update.message.reply_text("দয়া করে নির্দিষ্ট সার্ভিস বা রেঞ্জের বাটনটিতে ক্লিক করুন।")
+        return
+
+    # ৩. সাধারণ /range কমান্ড বা অন্য কিছু যদি আসে
+    match_range = re.match(r"^/range\s+(\d+)\s+(\d+)$", text)
+    if match_range:
+        min_v = int(match_range.group(1))
+        max_v = int(match_range.group(2))
+        chosen = random.randint(min_v, max_v)
+        await update.message.reply_text(
+            f"🎯 রেঞ্জ ({min_v} - {max_v}) এর মধ্যে নম্বর: *{chosen}*",
+            parse_mode="Markdown"
+        )
+        return
+
+    # অন্য কোনো সাধারণ লেখা আসলে
+    await update.message.reply_text(f"রিসিভ হয়েছে: {text}")
 
 if __name__ == "__main__":
     TOKEN = "8998738234:AAGpV1zS4miYRC9AxNpSHvJNyWPgkfI9-U4"
 
     app = ApplicationBuilder().token(TOKEN).build()
 
-    # সকল প্রকার টেক্সট এবং কমান্ড মেসেজ ধরার জন্য ফিল্টার
-    app.add_handler(MessageHandler(filters.TEXT | filters.COMMAND, handle_number_generation))
+    # সকল ধরনের টেক্সট ও কমান্ড মেসেজ ধরার ফিল্টার
+    app.add_handler(MessageHandler(filters.TEXT | filters.COMMAND, handle_bot_actions))
 
     print("Bot is running...")
     app.run_polling()
