@@ -1,7 +1,8 @@
 import logging
 import random
+import re
 from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+from telegram.ext import ApplicationBuilder, MessageHandler, CommandHandler, ContextTypes, filters
 
 # Logging setup
 logging.basicConfig(
@@ -17,7 +18,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "অথবা সরাসরি রেঞ্জের জন্য: /range 1 50"
     )
 
-# Custom range random number command (যদি কেউ সরাসরি রেঞ্জ দিতে চায়)
+# Custom range random number command
 async def random_range(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         if len(context.args) < 2:
@@ -45,15 +46,13 @@ async def random_range(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except ValueError:
         await update.message.reply_text("দয়া করে শুধু পূর্ণসংখ্যা ব্যবহার করুন! যেমন: /range 1 10")
 
-
-# ইনলাইন বাটন থেকে আসা কমান্ড হ্যান্ডেল করার জন্য
+# `/number` কমান্ড হ্যান্ডেল করার জন্য
 async def handle_number_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         if len(context.args) >= 2:
             service_name = context.args[0]
             max_limit = int(context.args[1])
             
-            # ১ থেকে ব্যবহারকারীর দেওয়া সংখ্যাটির মধ্যে র‍্যান্ডম নম্বর জেনারেট করবে
             generated_num = random.randint(1, max_limit)
             
             await update.message.reply_text(
@@ -63,13 +62,29 @@ async def handle_number_request(update: Update, context: ContextTypes.DEFAULT_TY
             )
         else:
             await update.message.reply_text(
-                "বট সক্রিয় আছে! দয়া করে সঠিক ফরম্যাটে কমান্ড দিন।"
+                "দয়া করে সঠিক ফরম্যাটে কমান্ড দিন। যেমন: /number 382671XXX 5"
             )
     except ValueError:
         await update.message.reply_text("নম্বর প্রসেস করতে সমস্যা হয়েছে। দয়া করে সঠিক সংখ্যা দিন।")
 
+# ইনলাইন বাটন থেকে আসা স্ল্যাশযুক্ত কমান্ড (যেমন: `/382671XXX 5`) সরাসরি হ্যান্ডেল করার জন্য
+async def handle_slashed_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text
+    # প্যাটার্ন চেক করা যেমন: /382671XXX 5
+    match = re.match(r"^/([^\s]+)\s+(\d+)$", text)
+    if match:
+        service_name = match.group(1)
+        max_limit = int(match.group(2))
+        
+        generated_num = random.randint(1, max_limit)
+        
+        await update.message.reply_text(
+            f"🌐 সার্ভিস/আইডি: `{service_name}`\n"
+            f"🎲 প্রাপ্ত র‍্যান্ডম নম্বর: *{generated_num}*",
+            parse_mode="Markdown"
+        )
+
 if __name__ == "__main__":
-    # আপনার দেওয়া টেলিগ্রাম বটের টোকেন এখানে বসানো হলো
     TOKEN = "8998738234:AAGpV1zS4miYRC9AxNpSHvJNyWPgkfI9-U4"
 
     app = ApplicationBuilder().token(TOKEN).build()
@@ -77,6 +92,11 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("range", random_range))
     app.add_handler(CommandHandler("number", handle_number_request))
+    
+    # বাটন থেকে আসা স্ল্যাশ কমান্ড ধরার জন্য ফিল্টার
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_slashed_command))
+    # যদি সরাসরি বট কমান্ড হিসেবে পড়তে চায়
+    app.add_handler(MessageHandler(filters.Regex(r"^/[^\s]+\s+\d+$"), handle_slashed_command))
 
     print("Bot is running...")
     app.run_polling()
