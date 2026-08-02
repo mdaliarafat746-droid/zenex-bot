@@ -13,11 +13,10 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 BOT_TOKEN = "8998738234:AAGpV1zS4miYRC9AxNpSHvJNyWPgkfI9-U4"
 API_KEY = "ZNX_5GJKQ6O8MT1F20MSW2G9K4V9"
 
-# আপনার টেলিগ্রাম চ্যাট আইডি এখানে বসানো হয়েছে
 ADMIN_CHAT_ID = "6470943912"  
 ADMIN_PROFILE = "https://t.me/Mdarafatali26"
 
-# ইতিমধ্যে যে ওটিপিগুলো পাঠানো হয়েছে তা ট্র্যাক করার জন্য সেট
+# ইতিমধ্যে যে ওটিপিগুলো পাঠানো হয়েছে তা ট্র্যাক করার জন্য গ্লোবাল সেট
 notified_otps = set()
 
 # দেশের নাম বা সার্ভিস অনুযায়ী সঠিক ফ্লাগ ইমোজি নির্ধারণ করার ফাংশন
@@ -40,7 +39,7 @@ def get_flag_by_text(text):
     else:
         return "🌐"
 
-# ব্যাকগ্রাউন্ডে স্বয়ংক্রিয়ভাবে ওটিপি চেক করার ফাংশন (প্রতি ৫ সেকেন্ড পর পর চলবে)
+# ব্যাকগ্রাউন্ডে স্বয়ংক্রিয়ভাবে ওটিপি চেক করার ফাংশন (ডুপ্লিকেট রোধ সহ)
 async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
     try:
         response = requests.get(
@@ -55,8 +54,13 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
             
             for item in otps_list:
                 nid = item.get('nid')
+                # চেক করা হচ্ছে nid টি ইতিপূর্বে নোটিফাই করা হয়েছে কি না
                 if nid and nid not in notified_otps:
                     notified_otps.add(nid)
+                    
+                    # মেমোরি বেশি বড় হওয়া রোধ করতে সেটের সাইজ লিমিট রাখা (ঐচ্ছিক নিরাপত্তা)
+                    if len(notified_otps) > 500:
+                        notified_otps.pop()
                     
                     num = item.get('number')
                     otp_text = item.get('otp')
