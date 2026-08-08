@@ -6,6 +6,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKe
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, CallbackQueryHandler, MessageHandler, filters
 import sys
 import io
+import re
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
@@ -35,6 +36,15 @@ def save_nids(nids_set):
         print(f"NID Save Error: {e}")
 
 notified_nids = load_nids()
+
+def extract_pure_code(full_text):
+    """সম্পূর্ণ মেসেজ থেকে শুধু সংখ্যা বা ওটিপি কোডটি আলাদা করার ফাংশন"""
+    text = str(full_text).strip()
+    # সাধারণত ৬ বা ৪ ডিজিটের ওটিপি কোডগুলো আলাদা করার জন্য বা প্রথম সংখ্যা খোঁজার জন্য
+    match = re.search(r'\b\d{4,8}\b', text)
+    if match:
+        return match.group(0)
+    return text
 
 def get_country_info_by_range_or_text(range_str, country_field, raw_text=""):
     r_str = str(range_str)
@@ -106,7 +116,6 @@ def format_service_name(item):
     else:
         return "✨ New FB"
 
-# ব্যাকগ্রাউন্ডে স্বয়ংক্রিয়ভাবে ওটিপি চেক করার ফাংশন
 async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
     try:
         res1 = requests.get('https://api.zenexnetwork.com/v1/numsuccess/info', headers={'mapikey': PANEL_1_KEY}, timeout=10).json()
@@ -116,12 +125,12 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
             updated = False
             for item in otps_list:
                 num = item.get('number')
-                otp_text = str(item.get('otp', '')).strip()
+                raw_otp = item.get('otp', '')
+                otp_text = extract_pure_code(raw_otp)  # শুধু সংখ্যা বা কোড ফিল্টার করা হলো
                 service = item.get('service', 'Facebook')
                 
                 unique_signature = f"{num}_{otp_text}"
                 
-                # নতুন ওটিপি হলে সাথে সাথে নোটিফিকেশন পাঠাবে
                 if unique_signature not in notified_nids:
                     notified_nids.add(unique_signature)
                     updated = True
@@ -137,6 +146,7 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
                         f"💰 Balance: `$0.0480`"
                     )
                     
+                    # বাটনে শুধু নম্বর এবং শুধু কোড দেখানোর ব্যবস্থা
                     btn_label = f"📞 +{num} 🔑 {otp_text}"
                     keyboard = [[InlineKeyboardButton(btn_label, callback_data=f"copy_{otp_text}")]]
                     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -205,7 +215,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             res1 = requests.get('https://api.zenexnetwork.com/v1/numsuccess/info', headers={'mapikey': PANEL_1_KEY}, timeout=10).json()
             if res1.get('meta', {}).get('code') == 200:
                 for item in res1.get('data', {}).get('otps', [])[:5]:
-                    num, otp_text, country = item.get('number'), item.get('otp'), item.get('country', '')
+                    num = item.get('number')
+                    otp_text = extract_pure_code(item.get('otp', ''))
+                    country = item.get('country', '')
                     flag, c_code, _ = get_country_info_by_range_or_text(str(num), country)
                     msg += f"[P1] 📞 `{num}` | {flag} {c_code}\n🔑 `{otp_text}`\n-------------------\n"
             await loading_msg.edit_text(msg, parse_mode="Markdown")
@@ -315,7 +327,6 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     
-    # এখানে ব্যাকগ্রাউন্ড জব সেট করা হয়েছে যা প্রতি ১০ সেকেন্ড পর পর অটো রান হবে
     app.job_queue.run_repeating(auto_otp_checker, interval=10, first=3)
     
     app.add_handler(CommandHandler("start", start))
