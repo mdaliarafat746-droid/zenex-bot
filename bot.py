@@ -112,7 +112,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
 
     if text == "📱 Get Number":
-        loading_msg = await update.message.reply_text("প্যানেل থেকে কান্ট্রি অনুযায়ী রেঞ্জ লোড করা হচ্ছে...")
+        loading_msg = await update.message.reply_text("প্যানেল থেকে রেঞ্জ ও ক্যাটাগরি লোড করা হচ্ছে...")
         
         try:
             response = requests.get(
@@ -130,27 +130,34 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     rng = item.get('range')
                     srv = item.get('service', 'Facebook')
                     
-                    # কান্ট্রি নাম ডিটেক্ট করা
-                    country_name = None
+                    # সঠিক কান্ট্রি নাম খুঁজে বের করা (যদি এপিআইতে থাকে)
+                    country_name = "Global"
                     for key in ['country', 'nation', 'region', 'location']:
-                        if item.get(key):
+                        if item.get(key) and str(item.get(key)).strip() != "":
                             country_name = item.get(key)
                             break
                     
-                    if not country_name:
-                        country_name = srv
-
                     flag = get_flag_by_text(country_name)
                     
-                    # ওয়েবসাইটের স্টাইলে ফ্ল্যাগ, কান্ট্রি এবং রেঞ্জ দেখানো
-                    btn_text = f"{flag} {country_name} | {rng}"
-                    keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"get3_{rng}_{country_name}")])
+                    # PC Clone, New Fb ইত্যাদি ক্যাটাগরি ডিটেক্ট করা
+                    mode_type = None
+                    for key in ['mode', 'type', 'category', 'sub_service', 'tag', 'status', 'label']:
+                        if item.get(key) and str(item.get(key)).strip() != "":
+                            mode_type = item.get(key)
+                            break
+                    
+                    if not mode_type:
+                        mode_type = "New Fb" if "new" in str(item).lower() else "PC Clone"
+
+                    # বাটন টেক্সট: ফ্ল্যাগ + কান্ট্রি | রেঞ্জ | সার্ভিস (ক্যাটাগরি)
+                    btn_text = f"{flag} {country_name} | {rng} | {srv} ({mode_type})"
+                    keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"get3_{rng}_{srv}")])
                 
                 keyboard.append([InlineKeyboardButton("🔙 Close", callback_data="close_menu")])
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 
                 await loading_msg.edit_text(
-                    "⚡ **COUNTRIES & RANGES**\n\n_আপনার পছন্দের কান্ট্রি সিলেক্ট করুন:_",
+                    "⚡ **ACTIVE RANGES & CATEGORIES**\n\n_আপনার পছন্দের রেঞ্জটি সিলেক্ট করুন:_",
                     parse_mode="Markdown",
                     reply_markup=reply_markup
                 )
