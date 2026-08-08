@@ -117,7 +117,6 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
                     country = item.get('country', '')
                     flag, c_code, _ = get_country_info_by_range_or_text(str(num), country)
                     
-                    # স্ক্রিনশট অনুযায়ী ফরম্যাট করা টেক্সট
                     msg_text = (
                         f"⚔️ **{service} Received.**\n"
                         f"❓ {flag} {country if country else c_code}\n"
@@ -126,7 +125,6 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
                         f"💰 Balance: `$0.0480`"
                     )
                     
-                    # ইনলাইন বাটন ওটিপির জন্য
                     keyboard = [[InlineKeyboardButton(f"🔑 {otp_text}", callback_data=f"copy_{otp_text}")]]
                     reply_markup = InlineKeyboardMarkup(keyboard)
                     
@@ -240,8 +238,9 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 
                 keyboard = []
                 for num in assigned_numbers:
-                    btn_label = f"🇫 +{num}" if not str(num).startswith("+") else f"🇫 {num}"
-                    keyboard.append([InlineKeyboardButton(btn_label, callback_data=f"copy_{num}")])
+                    clean_num = str(num).replace("+", "")
+                    btn_label = f"📱 +{clean_num}"
+                    keyboard.append([InlineKeyboardButton(btn_label, callback_data=f"copy_+{clean_num}")])
                 
                 keyboard.append([InlineKeyboardButton("🔄 Change Number", callback_data=f"get3_{range_value}_{c_code}")])
                 keyboard.append([InlineKeyboardButton("🌐 Change Country", callback_data="back_to_menu")])
@@ -263,7 +262,7 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif data_code.startswith("copy_"):
         val_to_copy = data_code.split("_", 1)[1]
-        await query.answer(text=f"কপি করা হয়েছে: {val_to_copy}", show_alert=True)
+        await query.answer(text=f"নম্বর কপি করা হয়েছে: {val_to_copy}", show_alert=True)
 
     elif data_code == "back_to_menu":
         await query.message.delete()
