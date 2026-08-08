@@ -85,7 +85,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [KeyboardButton("💰 Balance"), KeyboardButton("👤 Profile")]
     ]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-    await update.message.reply_text("স্বাগতম! ফাস্ট অটো-ওটিপি বোটে আপনাকে স্বাগতম:", reply_markup=reply_markup)
+    await update.message.reply_text("স্বাগতম! মাল্টি-প্যানেল অটো-ওটিপি বোটে আপনাকে স্বাগতম:", reply_markup=reply_markup)
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
@@ -114,7 +114,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         if len(all_ranges) > 0:
             keyboard = []
-            for item in all_ranges[:15]:  # গতি বাড়ানোর জন্য সর্বোচ্চ ১৫টি রেঞ্জ দেখানো হবে
+            for item in all_ranges[:20]:
                 rng = str(item.get('range', '') or item.get('rid', ''))
                 srv = item.get('service', 'Facebook')
                 api_country = item.get('country', '')
@@ -123,12 +123,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 flag, c_code = get_country_info_by_range_or_text(rng, api_country, srv)
                 mode_type = item.get('mode', '') or item.get('category', '') or "Clone"
 
-                btn_text = f"{flag} {c_code} | {rng} | {srv} ({mode_type})"
+                # এখানে প্যানেল ট্যাগ [P1] অথবা [P2] যুক্ত করা হয়েছে
+                panel_tag = "P1" if p_type == 'panel1' else "P2"
+                btn_text = f"[{panel_tag}] {flag} {c_code} | {rng} | {srv}"
+                
                 keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"get3_{rng}_{c_code}_{p_type}")])
             
             keyboard.append([InlineKeyboardButton("🔙 Close", callback_data="close_menu")])
             reply_markup = InlineKeyboardMarkup(keyboard)
-            await loading_msg.edit_text("⚡ **ACTIVE RANGES**\n\n_আপনার পছন্দের রেঞ্জটি সিলেক্ট করুন:_", parse_mode="Markdown", reply_markup=reply_markup)
+            await loading_msg.edit_text("⚡ **ACTIVE RANGES (MULTI-PANEL)**\n\n_আপনার পছন্দের রেঞ্জটি সিলেক্ট করুন:_", parse_mode="Markdown", reply_markup=reply_markup)
         else:
             await loading_msg.edit_text("❌ রেঞ্জ লোড করতে ব্যর্থ হয়েছে। সার্ভার চেক করুন।")
             
@@ -151,7 +154,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await loading_msg.edit_text(f"এরর: {e}")
             
     elif text == "💰 Balance":
-        await update.message.reply_text("API কানেকশন ফাস্ট ও সক্রিয় আছে।")
+        await update.message.reply_text("API কানেকশন সক্রিয় আছে।")
     elif text == "👤 Profile":
         await update.message.reply_text(f"আপনার টেলিগ্রাম আইডি: {update.effective_user.id}")
     else:
@@ -168,7 +171,7 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
         c_code = parts[2] if len(parts) > 2 else "GLOBAL"
         p_type = parts[3] if len(parts) > 3 else "panel1"
         
-        await query.edit_message_text(text="🔄 দ্রুত নম্বর অ্যাসাইন করা হচ্ছে...")
+        await query.edit_message_text(text="🔄 নির্দিষ্ট প্যানেল থেকে নম্বর অ্যাসাইন করা হচ্ছে...")
 
         assigned_numbers = []
         detected_c_code = c_code
@@ -205,10 +208,11 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 ]
                 reply_markup = InlineKeyboardMarkup(keyboard)
 
+                panel_label = "Panel 1" if p_type == 'panel1' else "Panel 2"
                 result_msg = (
-                    f"╔═══════════════════════╗\n"
-                    f"║ {flag} **[{final_c_code}] ASSIGNED NUMBERS** ║\n"
-                    f"╚═══════════════════════╝\n\n"
+                    f"╔══════════════════════════════╗\n"
+                    f"║ {flag} **[{final_c_code}] ASSIGNED ({panel_label})** ║\n"
+                    f"╚══════════════════════════════╝\n\n"
                     f"💰 **Per OTP:** 0.30 TK\n\n"
                     f"| SL | Assigned Numbers |\n"
                     f"| :---: | :--- |\n"
@@ -239,7 +243,7 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
     app.add_handler(CallbackQueryHandler(button_click))
-    print("Fast Multi-Panel Auto-OTP Bot is running...")
+    print("Multi-Panel Auto-OTP Bot is running...")
     app.run_polling()
 
 if __name__ == '__main__':
