@@ -106,9 +106,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             res_data = response.json()
             
-            # টার্মিনালে প্যানেলের পুরো ডেটা প্রিন্ট করে দেখাবে কোন ফিল্ডে আসল নাম আছে
-            print("API ACTIVE RANGES RESPONSE:", res_data)
-            
             if res_data.get('success') == True:
                 active_ranges = res_data.get('data', {}).get('active_ranges', [])
                 
@@ -118,7 +115,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     srv = item.get('service', 'Facebook')
                     hits = item.get('hits', '0')
                     
-                    # প্যানেল রেসপন্সের যেকোনো সম্ভাব্য ফিল্ড থেকে ডেটা খোঁজা
                     mode_type = None
                     for key in ['mode', 'type', 'category', 'sub_service', 'tag', 'status', 'label']:
                         if item.get(key):
@@ -134,8 +130,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 keyboard.append([InlineKeyboardButton("🔙 Close", callback_data="close_menu")])
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 
+                # এখানে হেডার টাইটেলে Last 10 Minutes হিট কাউন্টের বিষয়টি যুক্ত করা হয়েছে
                 await loading_msg.edit_text(
-                    "⚡ **TOP HITS RANGES**\n\n_সঠিক ক্যাটাগরি সহ রেঞ্জগুলো নিচে দেওয়া হলো:_",
+                    "⚡ **TOP HITS RANGES (Last 10M)**\n\n_শেষ ১০ মিনিটে কোন রেঞ্জে কত হিট করেছে তা নিচে দেখানো হলো:_",
                     parse_mode="Markdown",
                     reply_markup=reply_markup
                 )
