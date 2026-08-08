@@ -25,7 +25,6 @@ def load_nids():
             with open(NID_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 if isinstance(data, list):
-                    # যদি পুরোনো ফরম্যাট লিস্ট হয়, তবে সেগুলোকে বর্তমান সময় দিয়ে ডিকশনারিতে রূপান্তর করি
                     current_time = time.time()
                     return {item: current_time for item in data}
                 elif isinstance(data, dict):
@@ -36,13 +35,14 @@ def load_nids():
 
 def save_nids(nids_dict):
     try:
-        # বেশি বড় হয়ে গেলে পুরোনো ডেটা ক্লিন করে ফেলব
         with open(NID_FILE, "w", encoding="utf-8") as f:
             json.dump(nids_dict, f)
     except Exception as e:
         print(f"NID Save Error: {e}")
 
 sent_otps_cache = load_nids()
+# তাৎক্ষণিক ডাবল মেসেজ রোধ করতে রানিং মেমোরি সেট
+recently_sent_lock = set()
 
 def extract_pure_code(full_text):
     text = str(full_text).strip()
@@ -131,7 +131,6 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
             current_time = time.time()
             updated = False
             
-            # পুরোনো বা ৩ ঘণ্টা আগের মেমোরি পরিষ্কার করে ফেলা যাক
             expired_keys = [k for k, t in sent_otps_cache.items() if current_time - t > 10800]
             for k in expired_keys:
                 del sent_otps_cache[k]
@@ -143,14 +142,15 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
                 otp_text = extract_pure_code(raw_otp)
                 service = str(item.get('service', 'Facebook')).strip()
                 
-                # সিগনেচার তৈরি (নম্বর + ওটিপি)
-                unique_signature = f"{num}_{otp_text}"
+                # সম্পূর্ণ ইউনিক সিগনেচার (নম্বর + ওটিপি + সার্ভিস)
+                unique_signature = f"{num}_{otp_text}_{service}"
                 
-                # যদি এই ওটিপি ইতিমধ্যে পাঠানো হয়ে থাকে এবং তার বয়স যদি ৬০০ সেকেন্ড (১০ মিনিট) এর কম হয়, তবে স্কিপ করো
-                if unique_signature in sent_otps_cache:
+                # যদি ফাইল ক্যাশ অথবা রানিং লক মেমরিতে থাকে, তবে এক্সেকিউট হবে না
+                if unique_signature in sent_otps_cache or unique_signature in recently_sent_lock:
                     continue
                 
-                # নতুন ওটিপি হলে পাঠাবো
+                # তৎক্ষণাৎ লক করে ফেলছি যাতে একই লুপ বা ডাবল রিকোয়েস্টে দ্বিতীয়বার সেন্ড না হয়
+                recently_sent_lock.add(unique_signature)
                 sent_otps_cache[unique_signature] = current_time
                 updated = True
                     
@@ -344,7 +344,7 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
     app.add_handler(CallbackQueryHandler(button_click))
     
-    print("Anti-Duplicate Auto-OTP Bot is running smoothly...")
+    print("Anti-Duplicate Lock Bot is running smoothly...")
     app.run_polling(drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
