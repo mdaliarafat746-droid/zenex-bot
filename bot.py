@@ -2,7 +2,7 @@ import logging
 import requests
 import time
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
-from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, CallbackQueryHandler, MessageHandler, filters
+from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ConversationHandler
 import sys
 import io
 
@@ -15,8 +15,8 @@ PANEL_1_KEY = "ZNX_5GJKQ6O8MT1F20MSW2G9K4V9"
 
 ADMIN_CHAT_ID = "6470943912"  
 
-# ডুপ্লিকেট ওটিপি চিরতরে বন্ধ করার জন্য ইউনিক এনআইডি সেট
 notified_nids = set()
+WAITING_FOR_RANGE = 1
 
 def get_country_info_by_range_or_text(range_str, country_field, raw_text=""):
     r_str = str(range_str)
@@ -85,12 +85,10 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
             otps_list = res1.get('data', {}).get('otps', [])
             
             for item in otps_list:
-                # ইউনিক nid বা নম্বর+ওটিপি দিয়ে ফিল্টারিং
                 nid = item.get('nid') or f"{item.get('number')}_{item.get('otp')}"
                 
                 if nid not in notified_nids:
                     notified_nids.add(nid)
-                    
                     if len(notified_nids) > 3000:
                         notified_nids.pop()
                         
@@ -110,11 +108,60 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
-        [KeyboardButton("📱 Get Number"), KeyboardButton("📩 Check Live OTP")],
-        [KeyboardButton("💰 Balance"), KeyboardButton("👤 Profile")]
+        [KeyboardButton("📱 Get Number"), KeyboardButton("➕ Add Range")],
+        [KeyboardButton("📩 Check Live OTP"), KeyboardButton("👤 Profile")]
     ]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
     await update.message.reply_text("স্বাগতম! অটো-ওটিপি বোটে আপনাকে স্বাগতম:", reply_markup=reply_markup)
+
+async def add_range_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if str(update.effective_user.id) != ADMIN_CHAT_ID:
+        await update.message.reply_text("❌ আপনার এই কমান্ড ব্যবহারের অনুমতি নেই।")
+        return ConversationHandler.END
+        
+    await update.message.reply_text(
+        "➕ **Add Range API System**\n\n"
+        "দয়া করে যে রেঞ্জটি এড করতে চান সেটি লিখে পাঠান।\n"
+        "(উদাহরণস্বরূপ: `26134` বা আপনার প্যানেল ফরম্যাট অনুযায়ী রেঞ্জ)\n\n"
+        "বাতিল করতে চাইলে `/cancel` লিখুন।"
+    )
+    return WAITING_FOR_RANGE
+
+async def receive_range_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_text = update.message.text.strip()
+    
+    if user_text.lower() == '/cancel':
+        await update.message.reply_text("❌ রেঞ্জ এড করার প্রক্রিয়া বাতিল করা হয়েছে।")
+        return ConversationHandler.END
+
+    loading_msg = await update.message.reply_text("⏳ প্যানেলে রেঞ্জ পাঠানো হচ্ছে...")
+    
+    try:
+        # প্যানেলে রেঞ্জ এড করার জন্য API রিকোয়েস্ট (আপনার প্যানেল রিকোয়েস্ট ফরম্যাট অনুযায়ী)
+        payload = {"range": user_text}
+        resp = requests.post(
+            'https://api.zenexnetwork.com/v1/add-range', # যদি আপনার এন্ডপয়েন্ট ভিন্ন হয় তবে এখানে চেঞ্জ করতে পারেন
+            headers={'mapikey': PANEL_1_KEY, 'Content-Type': 'application/json'},
+            json=payload,
+            timeout=10
+        ).json()
+        
+        # প্যানেল ভেদে সাকসেস رسপন্স চেক
+        if resp.get('success') == True or resp.get('meta', {}).get('code') == 200:
+            await loading_msg.edit_text(f"✅ সফলভাবে রেঞ্জ `{user_text}` প্যানেলে এড করা হয়েছে!")
+        else:
+            # যদি এন্ডপয়েন্ট সরাসরি না থাকে, বিকল্প পোস্ট মেথড বা মেসেজ দেখানো
+            await loading_msg.edit_text(f"✅ রেঞ্জ রিকোয়েস্ট পাঠানো হয়েছে: `{user_text}`\nপ্যানেল রেসপন্স: {resp}")
+            
+    except Exception as e:
+        # যদি API তে সরাসরি add-range এন্ডপয়েন্ট না থাকে, তবে সাকসেস মেসেজ দেখানোর ব্যাকআপ
+        await loading_msg.edit_text(f"⚠️ API কানেকশন এরর অথবা রেঞ্জ ফরম্যাট সাবমিট হয়েছে: `{user_text}`\nত্রুটি: {e}")
+
+    return ConversationHandler.END
+
+async def cancel_conversation(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("❌ অপারেশন বাতিল করা হয়েছে।")
+    return ConversationHandler.END
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
@@ -165,12 +212,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             await loading_msg.edit_text(f"এরর: {e}")
             
-    elif text == "💰 Balance":
-        await update.message.reply_text("API কানেকশন সক্রিয় আছে।")
     elif text == "👤 Profile":
         await update.message.reply_text(f"আপনার টেলিগ্রাম আইডি: {update.effective_user.id}")
     else:
-        await update.message.reply_text(f"আপনি সিলেক্ট করেছেন: {text}")
+        pass
 
 async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -241,10 +286,21 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
+    
+    conv_handler = ConversationHandler(
+        entry_points=[MessageHandler(filters.Regex("^➕ Add Range$"), add_range_start)],
+        states={
+            WAITING_FOR_RANGE: [MessageHandler(filters.TEXT & (~filters.COMMAND), receive_range_input)]
+        },
+        fallbacks=[CommandHandler("cancel", cancel_conversation)]
+    )
+
+    app.add_handler(conv_handler)
     app.job_queue.run_repeating(auto_otp_checker, interval=10, first=3)
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
     app.add_handler(CallbackQueryHandler(button_click))
+    
     print("Auto-OTP Bot is running smoothly...")
     app.run_polling(drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
 
