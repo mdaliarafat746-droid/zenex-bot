@@ -95,24 +95,20 @@ def get_country_info_by_range_or_text(range_str, country_field, raw_text=""):
         return "🌍", "INT", "INTERNATIONAL"
 
 def format_service_name(item):
-    # প্যানেলের পুরো ডেটা এখানে প্রিন্ট হবে যাতে টার্মিনালে আসল কি-ওয়ার্ড দেখা যায়
-    print("API Item Data:", item)
+    srv = str(item.get('service', 'FACEBOOK')).upper()
+    rng = str(item.get('range', ''))
     
-    srv = str(item.get('service', '')).upper()
-    name_field = str(item.get('name', '')).lower()
-    desc_field = str(item.get('description', '')).lower()
-    combined_text = f"{srv} {name_field} {desc_field}".lower()
-
-    if "clone" in combined_text or "pc" in combined_text:
-        return "FACEBOOK | 🔴 PC Clone"
-    elif "new" in combined_text or "create" in combined_text:
-        return "FACEBOOK | 🟢 New Fb"
-    elif "insta" in combined_text:
+    # প্যানেলের ডেটা বা রেঞ্জ অনুযায়ী সঠিকভাবে PC Clone বা New Fb সেট করা হলো
+    full_str = str(item).lower()
+    
+    if "instagram" in full_str or srv == "INSTAGRAM":
         return "INSTAGRAM"
-    elif srv:
-        return f"{srv} | 🟢 New Fb"
+    
+    # আপনার স্ক্রিনশট অনুযায়ী 992778 রেঞ্জটি PC Clone
+    if rng.startswith("992778") or "clone" in full_str or "pc" in full_str:
+        return f"{srv} | 🔴 PC Clone"
     else:
-        return "FACEBOOK | 🟢 New Fb"
+        return f"{srv} | 🟢 New Fb"
 
 async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
     try:
@@ -279,7 +275,10 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             await query.edit_message_text("❌ সার্ভার থেকে রেসপন্স পেতে দেরি হচ্ছে। আবার চেষ্টা করুন।")
 
-    elif data_code.startswith("copy_"):
+    elif data_data_code := data_code.startswith("copy_"): # safe block
+        pass
+
+    if data_code.startswith("copy_"):
         val_to_copy = data_code.split("_", 1)[1]
         await query.answer(text=f"কপি করা হয়েছে: {val_to_copy}", show_alert=True)
 
