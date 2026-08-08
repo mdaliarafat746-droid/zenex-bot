@@ -41,60 +41,75 @@ def get_country_info_by_range_or_text(range_str, country_field, raw_text=""):
     c_field = str(country_field).lower()
     combined = f"{r_str} {c_field} {str(raw_text).lower()}".strip()
     
-    if r_str.startswith("992") or "tajikistan" in combined:
+    # প্রিফিক্স এবং কান্ট্রি ফিলд অনুযায়ী নিখুঁত ফ্ল্যাগ ও শর্ট কোড ম্যাপিং
+    if r_str.startswith("992") or "tajikistan" in combined or "tj" in c_field:
         return "🇹🇯", "TJ", "TAJIKISTAN"
-    elif r_str.startswith("261") or "madagascar" in combined:
+    elif r_str.startswith("261") or "madagascar" in combined or "mg" in c_field:
         return "🇲🇬", "MG", "MADAGASCAR"
-    elif r_str.startswith("380") or "ukraine" in combined:
+    elif r_str.startswith("380") or "ukraine" in combined or "ua" in c_field:
         return "🇺🇦", "UA", "UKRAINE"
-    elif r_str.startswith("224") or "guinea" in combined:
+    elif r_str.startswith("224") or "guinea" in combined or "gn" in c_field:
         return "🇬🇳", "GN", "GUINEA"
-    elif r_str.startswith("228") or "togo" in combined:
-        return "🇹🇬", "Togo", "TOGO"
-    elif r_str.startswith("237") or "cameroon" in combined:
+    elif r_str.startswith("228") or "togo" in combined or "tg" in c_field:
+        return "🇹🇬", "TG", "TOGO"
+    elif r_str.startswith("237") or "cameroon" in combined or "cm" in c_field:
         return "🇨🇲", "CM", "CAMEROON"
-    elif r_str.startswith("225") or "ivory" in combined:
+    elif r_str.startswith("225") or "ivory" in combined or "ci" in c_field or "côte" in combined:
         return "🇨🇮", "CI", "IVORY COAST"
-    elif r_str.startswith("880") or "bangladesh" in combined:
+    elif r_str.startswith("880") or "bangladesh" in combined or "bd" in c_field:
         return "🇧🇩", "BD", "BANGLADESH"
-    
-    if "malaysia" in combined:
+    elif r_str.startswith("236") or "central africa" in combined or "cf" in c_field:
+        return "🇨🇫", "CF", "CENTRAL AFRICA"
+    elif r_str.startswith("229") or "benin" in combined or "bj" in c_field:
+        return "🇧🇯", "BJ", "BENIN"
+    elif r_str.startswith("malaysia") or "my" in c_field:
         return "🇲🇾", "MY", "MALAYSIA"
-    elif "morocco" in combined:
+    elif "morocco" in combined or "ma" in c_field:
         return "🇲🇦", "MA", "MOROCCO"
-    elif "russian" in combined or "russia" in combined:
+    elif "russia" in combined or "ru" in c_field:
         return "🇷🇺", "RU", "RUSSIA"
-    elif "united kingdom" in combined or "uk" in combined:
-        return "🇬🇧", "UK", "UNITED KINGDOM"
-    elif "sudan" in combined:
+    elif "united kingdom" in combined or "uk" in combined or "gb" in c_field:
+        return "🇬🇧", "GB", "UNITED KINGDOM"
+    elif "sudan" in combined or "sd" in c_field:
         return "🇸🇩", "SD", "SUDAN"
-    elif "tanzania" in combined:
+    elif "tanzania" in combined or "tz" in c_field:
         return "🇹🇿", "TZ", "TANZANIA"
-    elif "zimbabwe" in combined:
+    elif "zimbabwe" in combined or "zw" in c_field:
         return "🇿🇼", "ZW", "ZIMBABWE"
-    elif "algeria" in combined:
+    elif "algeria" in combined or "dz" in c_field:
         return "🇩🇿", "DZ", "ALGERIA"
-    elif "bolivia" in combined:
+    elif "bolivia" in combined or "bo" in c_field:
         return "🇧🇴", "BO", "BOLIVIA"
-    elif "egypt" in combined:
+    elif "egypt" in combined or "eg" in c_field:
         return "🇪🇬", "EG", "EGYPT"
-    elif "india" in combined:
+    elif "india" in combined or "in" in c_field:
         return "🇮🇳", "IN", "INDIA"
-    elif "ghana" in combined:
+    elif "ghana" in combined or "gh" in c_field:
         return "🇬🇭", "GH", "GHANA"
-    elif "brazil" in combined:
+    elif "brazil" in combined or "br" in c_field:
         return "🇧🇷", "BR", "BRAZIL"
     else:
-        return "🌐", "GLOBAL", "GLOBAL"
+        # যদি রেঞ্জের শুরু দিয়ে চেনা যায়
+        if r_str.startswith("236"):
+            return "🇨🇫", "CF", "CENTRAL AFRICA"
+        elif r_str.startswith("229"):
+            return "🇧🇯", "BJ", "BENIN"
+        return "🌍", "INT", "INTERNATIONAL"
 
 def format_service_name(srv_name, range_str):
     s_lower = str(srv_name).lower()
     if "face" in s_lower or "fb" in s_lower:
-        return "Facebook"
+        return "フェ Facebook" if "clone" in s_lower else "Facebook"
     elif "insta" in s_lower:
         return "Instagram"
+    elif "clone" in s_lower:
+        return "PC Clone"
+    elif "telegram" in s_lower or "tg" in s_lower:
+        return "Telegram"
+    elif "whatsapp" in s_lower or "wa" in s_lower:
+        return "WhatsApp"
     else:
-        return s_lower.capitalize()
+        return s_lower.capitalize() if s_lower else "General"
 
 async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
     try:
@@ -172,10 +187,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 srv = item.get('service', 'Service')
                 api_country = item.get('country', '')
                 
-                flag, c_code, _ = get_country_info_by_range_or_text(rng, api_country, srv)
+                flag, c_code, full_c_name = get_country_info_by_range_or_text(rng, api_country, srv)
                 formatted_srv = format_service_name(srv, rng)
                 
-                btn_text = f"{flag} {rng} | {formatted_srv}"
+                # বাটনে ফ্ল্যাগ, কান্ট্রি কোড, রেঞ্জ এবং সার্ভিস খুব পরিষ্কারভাবে দেখাবে
+                btn_text = f"{flag} [{c_code}] {rng} | {formatted_srv}"
                 keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"get3_{rng}_{c_code}")])
             
             keyboard.append([InlineKeyboardButton("🔙 Close", callback_data="close_menu")])
@@ -249,7 +265,7 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 reply_markup = InlineKeyboardMarkup(keyboard)
 
                 result_msg = (
-                    f"❓ **Country:** {flag} **{full_country_name}**\n"
+                    f"❓ **Country:** {flag} **{full_country_name}** ({final_c_code})\n"
                     f"🎟️ **Waiting for OTP**\n\n"
                     f"{numbers_block}\n"
                     f"_👆 উপরের নম্বরের ওপর ট্যাপ করলেই খুব সহজে কপি হয়ে যাবে!_"
