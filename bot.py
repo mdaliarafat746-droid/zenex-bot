@@ -38,9 +38,7 @@ def save_nids(nids_set):
 notified_nids = load_nids()
 
 def extract_pure_code(full_text):
-    """সম্পূর্ণ মেসেজ থেকে শুধু সংখ্যা বা ওটিপি কোডটি আলাদা করার ফাংশন"""
     text = str(full_text).strip()
-    # সাধারণত ৬ বা ৪ ডিজিটের ওটিপি কোডগুলো আলাদা করার জন্য বা প্রথম সংখ্যা খোঁজার জন্য
     match = re.search(r'\b\d{4,8}\b', text)
     if match:
         return match.group(0)
@@ -102,19 +100,20 @@ def get_country_info_by_range_or_text(range_str, country_field, raw_text=""):
             return "🇨🇫", "CF", "CENTRAL AFRICA"
         elif r_str.startswith("229"):
             return "🇧🇯", "BJ", "BENIN"
-        return "🌍", "INT", "INTERNATIONAL"
+        return "🌍", "MZ", "MOZAMBIQUE"
 
-def format_service_name(item):
-    srv = str(item.get('service', 'FACEBOOK')).upper()
-    full_str = str(item).lower()
-    
-    if "instagram" in full_str or srv == "INSTAGRAM":
-        return "⚡ INSTAGRAM"
-    
-    if "clone" in full_str or "pc" in full_str:
-        return "💻 PC Clone"
+def get_service_emoji(service_name):
+    srv = str(service_name).lower()
+    if "instagram" in srv:
+        return "📸"
+    elif "facebook" in srv or "fb" in srv:
+        return "🇫🇧"
+    elif "telegram" in srv:
+        return "✈️"
+    elif "whatsapp" in srv:
+        return "💚"
     else:
-        return "✨ New FB"
+        return "🌐"
 
 async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
     try:
@@ -126,7 +125,7 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
             for item in otps_list:
                 num = item.get('number')
                 raw_otp = item.get('otp', '')
-                otp_text = extract_pure_code(raw_otp)  # শুধু সংখ্যা বা কোড ফিল্টার করা হলো
+                otp_text = extract_pure_code(raw_otp)
                 service = item.get('service', 'Facebook')
                 
                 unique_signature = f"{num}_{otp_text}"
@@ -137,17 +136,13 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
                         
                     country = item.get('country', '')
                     flag, c_code, _ = get_country_info_by_range_or_text(str(num), country)
+                    srv_emoji = get_service_emoji(service)
                     
-                    msg_text = (
-                        f"⚔️ **{service} Received.**\n"
-                        f"❓ {flag} {country if country else c_code}\n"
-                        f"📞 `+{num}`\n"
-                        f"👥 Earned: `+$0.0030`\n"
-                        f"💰 Balance: `$0.0480`"
-                    )
+                    # আপনার দেওয়া স্ক্রিনশটের মতো নির্দিষ্ট ফরম্যাট
+                    msg_text = f"{flag} **{c_code}** {srv_emoji} `+{num}`"
                     
-                    # বাটনে শুধু নম্বর এবং শুধু কোড দেখানোর ব্যবস্থা
-                    btn_label = f"📞 +{num} 🔑 {otp_text}"
+                    # বাটনে লক আইকন এবং শুধু কোড
+                    btn_label = f"🔐 {otp_text}"
                     keyboard = [[InlineKeyboardButton(btn_label, callback_data=f"copy_{otp_text}")]]
                     reply_markup = InlineKeyboardMarkup(keyboard)
                     
@@ -195,9 +190,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 api_country = item.get('country', '')
                 
                 flag, c_code, _ = get_country_info_by_range_or_text(rng, api_country, str(item))
-                formatted_srv = format_service_name(item)
+                srv = str(item.get('service', 'Facebook'))
+                srv_emoji = get_service_emoji(srv)
                 
-                btn_text = f"{flag} {rng} | {formatted_srv}"
+                btn_text = f"{flag} {rng} | {srv_emoji} {srv}"
                 keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"get3_{rng}_{c_code}")])
             
             keyboard.append([InlineKeyboardButton("❌ Close Menu", callback_data="close_menu")])
@@ -219,7 +215,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     otp_text = extract_pure_code(item.get('otp', ''))
                     country = item.get('country', '')
                     flag, c_code, _ = get_country_info_by_range_or_text(str(num), country)
-                    msg += f"[P1] 📞 `{num}` | {flag} {c_code}\n🔑 `{otp_text}`\n-------------------\n"
+                    srv_emoji = get_service_emoji(item.get('service', 'Facebook'))
+                    msg += f"{flag} **{c_code}** {srv_emoji} `+{num}`\n🔑 `{otp_text}`\n-------------------\n"
             await loading_msg.edit_text(msg, parse_mode="Markdown")
         except Exception as e:
             await loading_msg.edit_text(f"এরর: {e}")
@@ -237,7 +234,7 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if data_code.startswith("get3_"):
         parts = data_code.split("_")
         range_value = parts[1]
-        c_code = parts[2] if len(parts) > 2 else "GLOBAL"
+        c_code = parts[2] if len(parts) > 2 else "MZ"
         
         await query.edit_message_text(text="🔄 প্যানেল থেকে নম্বর অ্যাসাইন করা হচ্ছে...")
 
@@ -308,8 +305,9 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     rng = str(item.get('range', ''))
                     api_country = item.get('country', '')
                     flag, c_code, _ = get_country_info_by_range_or_text(rng, api_country, str(item))
-                    formatted_srv = format_service_name(item)
-                    btn_text = f"{flag} {rng} | {formatted_srv}"
+                    srv = str(item.get('service', 'Facebook'))
+                    srv_emoji = get_service_emoji(srv)
+                    btn_text = f"{flag} {rng} | {srv_emoji} {srv}"
                     keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"get3_{rng}_{c_code}")])
                 
                 keyboard.append([InlineKeyboardButton("❌ Close Menu", callback_data="close_menu")])
