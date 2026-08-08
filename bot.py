@@ -70,9 +70,7 @@ def format_service_name(srv_name, range_str):
     s_lower = str(srv_name).lower()
     r_str = str(range_str)
     
-    # আপনার চাহিদা অনুযায়ী এখানে নাম ম্যাপিং করা হয়েছে
     if "face" in s_lower or "fb" in s_lower:
-        # আপনি চাইলে রেঞ্জ অনুযায়ী বা নির্দিষ্ট শর্তে Clone বা New Fb সেট করতে পারেন
         if "clone" in s_lower:
             return "Facebook (Fb Clone)"
         elif "new" in s_lower or r_str.endswith("4XXX") or r_str.endswith("4xx"):
@@ -88,15 +86,21 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
     try:
         res1 = requests.get('https://api.zenexnetwork.com/v1/numsuccess/info', headers={'mapikey': PANEL_1_KEY}, timeout=10).json()
         if res1.get('meta', {}).get('code') == 200:
-            for item in res1.get('data', {}).get('otps', []):
-                nid = item.get('nid')
+            otps_list = res1.get('data', {}).get('otps', [])
+            for item in otps_list:
+                # ইউনিক আইডি বা কম্বিনেশন তৈরি করা যাতে ডুপ্লিকেট না আসে
+                nid = item.get('nid') or f"{item.get('number')}_{item.get('otp')}"
                 if nid and nid not in notified_otps:
                     notified_otps.add(nid)
+                    # মেমোরি সুরক্ষার জন্য সেট সাই즈 সীমিত রাখা
+                    if len(notified_otps) > 500:
+                        notified_otps.pop()
+                        
                     num, otp_text, country, service = item.get('number'), item.get('otp'), item.get('country', ''), item.get('service', 'Facebook')
                     flag, c_code = get_country_info_by_range_or_text(str(num), country)
                     await context.bot.send_message(chat_id=ADMIN_CHAT_ID, text=f"⚔️ **[P1] {service} Received.**\n❓ {flag} {c_code}\n📞 `{num}`\n🔑 `{otp_text}`", parse_mode="Markdown")
-    except:
-        pass
+    except Exception as e:
+        print(f"OTP Checker Error: {e}")
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
