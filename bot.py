@@ -18,7 +18,23 @@ notified_otps = set()
 
 def get_flag_by_text(text):
     text = text.lower()
-    if "madagascar" in text:
+    if "malaysia" in text:
+        return "🇲🇾"
+    elif "morocco" in text:
+        return "🇲🇦"
+    elif "russian" in text or "russia" in text:
+        return "🇷🇺"
+    elif "sudan" in text:
+        return "🇸🇩"
+    elif "tanzania" in text:
+        return "🇹🇿"
+    elif "zimbabwe" in text:
+        return "🇿🇼"
+    elif "algeria" in text:
+        return "🇩🇿"
+    elif "bolivia" in text:
+        return "🇧🇴"
+    elif "madagascar" in text:
         return "🇲🇬"
     elif "egypt" in text:
         return "🇪🇬"
@@ -96,7 +112,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
 
     if text == "📱 Get Number":
-        loading_msg = await update.message.reply_text("প্যানেল থেকে রেঞ্জ লোড করা হচ্ছে...")
+        loading_msg = await update.message.reply_text("প্যানেل থেকে কান্ট্রি অনুযায়ী রেঞ্জ লোড করা হচ্ছে...")
         
         try:
             response = requests.get(
@@ -114,25 +130,27 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     rng = item.get('range')
                     srv = item.get('service', 'Facebook')
                     
-                    # ক্যাটাগরি বা সাব-টাইপ ডিটেক্ট করা
-                    mode_type = None
-                    for key in ['mode', 'type', 'category', 'sub_service', 'tag', 'status', 'label']:
+                    # কান্ট্রি নাম ডিটেক্ট করা
+                    country_name = None
+                    for key in ['country', 'nation', 'region', 'location']:
                         if item.get(key):
-                            mode_type = item.get(key)
+                            country_name = item.get(key)
                             break
                     
-                    if not mode_type:
-                        mode_type = "New Fb" if "new" in str(item).lower() else "PC Clone"
+                    if not country_name:
+                        country_name = srv
 
-                    # হিটের অংশটি বাদ দিয়ে শুধু রেঞ্জ এবং সার্ভিস/ক্যাটাগরি রাখা হলো
-                    btn_text = f"{rng} | {srv} ({mode_type})"
-                    keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"get3_{rng}_{srv}")])
+                    flag = get_flag_by_text(country_name)
+                    
+                    # ওয়েবসাইটের স্টাইলে ফ্ল্যাগ, কান্ট্রি এবং রেঞ্জ দেখানো
+                    btn_text = f"{flag} {country_name} | {rng}"
+                    keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"get3_{rng}_{country_name}")])
                 
                 keyboard.append([InlineKeyboardButton("🔙 Close", callback_data="close_menu")])
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 
                 await loading_msg.edit_text(
-                    "⚡ **ACTIVE RANGES**\n\n_সঠিক রেঞ্জ ও ক্যাটাগরি নিচে দেওয়া হলো:_",
+                    "⚡ **COUNTRIES & RANGES**\n\n_আপনার পছন্দের কান্ট্রি সিলেক্ট করুন:_",
                     parse_mode="Markdown",
                     reply_markup=reply_markup
                 )
