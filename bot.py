@@ -94,24 +94,24 @@ def get_country_info_by_range_or_text(range_str, country_field, raw_text=""):
             return "🇧🇯", "BJ", "BENIN"
         return "🌍", "INT", "INTERNATIONAL"
 
-def format_service_name(srv_name, range_str):
-    s_lower = str(srv_name).lower()
+def format_service_name(item):
+    # প্যানেল থেকে পুরো অবজেক্ট নিয়ে সার্ভিস এবং ক্যাটাগরি নিখুঁতভাবে রিড করা হবে
+    srv = str(item.get('service', '')).upper()
+    sub_type = str(item.get('type', '')).lower()
+    range_val = str(item.get('range', ''))
     
-    if "clone" in s_lower:
-        return "💻 PC Clone"
-    elif "face" in s_lower or "fb" in s_lower:
-        if "new" in s_lower or "create" in s_lower:
-            return "🆕 New FB Create"
-        else:
-            return "📱 Facebook"
-    elif "insta" in s_lower:
-        return "📸 Instagram"
-    elif "telegram" in s_lower or "tg" in s_lower:
-        return "✈️ Telegram"
-    elif "whatsapp" in s_lower or "wa" in s_lower:
-        return "💬 WhatsApp"
+    combined_text = f"{srv} {sub_type} {range_val}".lower()
+
+    if "clone" in combined_text or "pc" in combined_text:
+        return "FACEBOOK | 🔴 PC Clone"
+    elif "new" in combined_text or "create" in combined_text or "fb" in combined_text:
+        return "FACEBOOK | 🟢 New Fb"
+    elif "insta" in combined_text:
+        return "INSTAGRAM"
+    elif srv:
+        return srv
     else:
-        return f"🔹 {s_lower.capitalize()}"
+        return "FACEBOOK | 🟢 New Fb"
 
 async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
     try:
@@ -186,12 +186,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             keyboard = []
             for item in all_ranges[:30]:
                 rng = str(item.get('range', ''))
-                srv = item.get('service', 'Service')
                 api_country = item.get('country', '')
                 
-                flag, c_code, full_c_name = get_country_info_by_range_or_text(rng, api_country, srv)
-                formatted_srv = format_service_name(srv, rng)
+                flag, c_code, _ = get_country_info_by_range_or_text(rng, api_country, str(item))
+                formatted_srv = format_service_name(item)
                 
+                # প্যানেলের স্টাইলে সুন্দরভাবে সাজানো হলো
                 btn_text = f"{flag} [{c_code}] {rng} | {formatted_srv}"
                 keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"get3_{rng}_{c_code}")])
             
