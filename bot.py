@@ -67,22 +67,9 @@ def get_country_info_by_range_or_text(range_str, country_field, raw_text=""):
 
 async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
     try:
-        res1 = requests.get('https://api.zenexnetwork.com/v1/numsuccess/info', headers={'mapikey': PANEL_1_KEY}, timeout=10).json()
+        res1 = requests.get('https://api.zenexnetwork.com/v1/numsuccess/info', headers={'mapikey': PANEL_1_KEY}, timeout=5).json()
         if res1.get('meta', {}).get('code') == 200:
             for item in res1.get('data', {}).get('otps', []):
-                nid = item.get('nid')
-                if nid and nid not in notified_otps:
-                    notified_otps.add(nid)
-                    num, otp_text, country, service = item.get('number'), item.get('otp'), item.get('country', ''), item.get('service', 'Facebook')
-                    flag, c_code = get_country_info_by_range_or_text(str(num), country)
-                    await context.bot.send_message(chat_id=ADMIN_CHAT_ID, text=f"⚔️ **{service} Received.**\n❓ {flag} {c_code}\n📞 `{num}`\n🔑 `{otp_text}`", parse_mode="Markdown")
-    except:
-        pass
-
-    try:
-        res2 = requests.get(f'{PANEL_2_BASE}/numsuccess/info', headers={'mauthapi': PANEL_2_KEY}, timeout=10).json()
-        if res2.get('meta', {}).get('code') == 200:
-            for item in res2.get('data', {}).get('otps', []):
                 nid = item.get('nid')
                 if nid and nid not in notified_otps:
                     notified_otps.add(nid)
@@ -98,17 +85,17 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [KeyboardButton("💰 Balance"), KeyboardButton("👤 Profile")]
     ]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-    await update.message.reply_text("স্বাগতম! মাল্টি-প্যানেল অটো-ওটিপি বোটে আপনাকে স্বাগতম:", reply_markup=reply_markup)
+    await update.message.reply_text("স্বাগতম! ফাস্ট অটো-ওটিপি বোটে আপনাকে স্বাগতম:", reply_markup=reply_markup)
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
 
     if text == "📱 Get Number":
-        loading_msg = await update.message.reply_text("সকল প্যানেল থেকে রেঞ্জ লোড করা হচ্ছে...")
+        loading_msg = await update.message.reply_text("⚡ রেঞ্জ লোড করা হচ্ছে...")
         all_ranges = []
         
         try:
-            r1 = requests.get('https://api.zenexnetwork.com/v1/active-ranges', headers={'mapikey': PANEL_1_KEY}, timeout=10).json()
+            r1 = requests.get('https://api.zenexnetwork.com/v1/active-ranges', headers={'mapikey': PANEL_1_KEY}, timeout=4).json()
             if r1.get('success') == True:
                 for r in r1.get('data', {}).get('active_ranges', []):
                     r['panel_type'] = 'panel1'
@@ -117,7 +104,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             pass
 
         try:
-            r2 = requests.get(f'{PANEL_2_BASE}/active-ranges', headers={'mauthapi': PANEL_2_KEY}, timeout=10).json()
+            r2 = requests.get(f'{PANEL_2_BASE}/active-ranges', headers={'mauthapi': PANEL_2_KEY}, timeout=4).json()
             ranges_data = r2.get('data', {}).get('active_ranges', []) or r2.get('data', [])
             for r in ranges_data:
                 r['panel_type'] = 'panel2'
@@ -127,44 +114,36 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         if len(all_ranges) > 0:
             keyboard = []
-            for item in all_ranges:
+            for item in all_ranges[:15]:  # গতি বাড়ানোর জন্য সর্বোচ্চ ১৫টি রেঞ্জ দেখানো হবে
                 rng = str(item.get('range', '') or item.get('rid', ''))
                 srv = item.get('service', 'Facebook')
                 api_country = item.get('country', '')
                 p_type = item.get('panel_type')
                 
-                raw_info = f"{api_country} {item.get('region', '')} {item.get('location', '')} {srv}"
-                flag, c_code = get_country_info_by_range_or_text(rng, api_country, raw_info)
-                
-                mode_type = item.get('mode', '') or item.get('category', '') or ("New Fb" if "new" in str(item).lower() else "PC Clone")
+                flag, c_code = get_country_info_by_range_or_text(rng, api_country, srv)
+                mode_type = item.get('mode', '') or item.get('category', '') or "Clone"
 
                 btn_text = f"{flag} {c_code} | {rng} | {srv} ({mode_type})"
                 keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"get3_{rng}_{c_code}_{p_type}")])
             
             keyboard.append([InlineKeyboardButton("🔙 Close", callback_data="close_menu")])
             reply_markup = InlineKeyboardMarkup(keyboard)
-            await loading_msg.edit_text("⚡ **ACTIVE RANGES (MULTI-PANEL)**\n\n_আপনার পছন্দের রেঞ্জটি সিলেক্ট করুন:_", parse_mode="Markdown", reply_markup=reply_markup)
+            await loading_msg.edit_text("⚡ **ACTIVE RANGES**\n\n_আপনার পছন্দের রেঞ্জটি সিলেক্ট করুন:_", parse_mode="Markdown", reply_markup=reply_markup)
         else:
-            await loading_msg.edit_text("❌ কোনো প্যানেল থেকেই রেঞ্জ লোড করা যায়নি।")
+            await loading_msg.edit_text("❌ রেঞ্জ লোড করতে ব্যর্থ হয়েছে। সার্ভার চেক করুন।")
             
     elif text == "📩 Check Live OTP":
-        loading_msg = await update.message.reply_text("ইনকামিং ওটিপি চেক করা হচ্ছে...")
+        loading_msg = await update.message.reply_text("ওটিপি চেক করা হচ্ছে...")
         try:
-            total_otps = []
-            res1 = requests.get('https://api.zenexnetwork.com/v1/numsuccess/info', headers={'mapikey': PANEL_1_KEY}, timeout=10).json()
-            if res1.get('meta', {}).get('code') == 200:
-                total_otps.extend(res1.get('data', {}).get('otps', []))
+            res1 = requests.get('https://api.zenexnetwork.com/v1/numsuccess/info', headers={'mapikey': PANEL_1_KEY}, timeout=5).json()
+            otps_list = res1.get('data', {}).get('otps', []) if res1.get('meta', {}).get('code') == 200 else []
             
-            res2 = requests.get(f'{PANEL_2_BASE}/numsuccess/info', headers={'mauthapi': PANEL_2_KEY}, timeout=10).json()
-            if res2.get('meta', {}).get('code') == 200:
-                total_otps.extend(res2.get('data', {}).get('otps', []))
-            
-            if len(total_otps) > 0:
+            if len(otps_list) > 0:
                 msg = "📥 **Live OTP Payloads:**\n\n"
-                for item in total_otps:
+                for item in otps_list[:5]:
                     num, otp_text, country = item.get('number'), item.get('otp'), item.get('country', '')
                     flag, c_code = get_country_info_by_range_or_text(str(num), country)
-                    msg += f"📞 নম্বর: `{num}`\n{flag} কোড: {c_code}\n💬 এসএমএস: __{otp_text}__\n-----------------------------------\n"
+                    msg += f"📞 `{num}` | {flag} {c_code}\n🔑 `{otp_text}`\n-------------------\n"
                 await loading_msg.edit_text(msg, parse_mode="Markdown")
             else:
                 await loading_msg.edit_text("📭 কোনো নতুন OTP আসেনি।")
@@ -172,7 +151,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await loading_msg.edit_text(f"এরর: {e}")
             
     elif text == "💰 Balance":
-        await update.message.reply_text("মাল্টি-প্যানেল API কানেকশন সক্রিয় রয়েছে।")
+        await update.message.reply_text("API কানেকশন ফাস্ট ও সক্রিয় আছে।")
     elif text == "👤 Profile":
         await update.message.reply_text(f"আপনার টেলিগ্রাম আইডি: {update.effective_user.id}")
     else:
@@ -189,7 +168,7 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
         c_code = parts[2] if len(parts) > 2 else "GLOBAL"
         p_type = parts[3] if len(parts) > 3 else "panel1"
         
-        await query.edit_message_text(text="🔄 প্যানেল থেকে নম্বর অ্যাসাইন করা হচ্ছে, দয়া করে অপেক্ষা করুন...")
+        await query.edit_message_text(text="🔄 দ্রুত নম্বর অ্যাসাইন করা হচ্ছে...")
 
         assigned_numbers = []
         detected_c_code = c_code
@@ -201,27 +180,22 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         'https://api.zenexnetwork.com/v1/getnum',
                         headers={'mapikey': PANEL_1_KEY, 'Content-Type': 'application/json'},
                         json={"range": range_value, "is_national": False, "remove_plus": False},
-                        timeout=10
+                        timeout=5
                     ).json()
-                    if resp.get('meta', {}).get('code') == 200:
-                        num_data = resp.get('data', {})
-                        full_num = num_data.get('full_number')
-                        assigned_numbers.append(full_num)
-                        if num_data.get('country') or full_num:
-                            _, detected_c_code = get_country_info_by_range_or_text(str(full_num), num_data.get('country', ''))
                 else:
                     resp = requests.post(
                         f'{PANEL_2_BASE}/getnum',
                         headers={'mauthapi': PANEL_2_KEY, 'Content-Type': 'application/json'},
                         json={"rid": range_value},
-                        timeout=10
+                        timeout=5
                     ).json()
-                    if resp.get('meta', {}).get('code') == 200:
-                        num_data = resp.get('data', {})
-                        full_num = num_data.get('full_number')
+                    
+                if resp.get('meta', {}).get('code') == 200:
+                    num_data = resp.get('data', {})
+                    full_num = num_data.get('full_number')
+                    if full_num:
                         assigned_numbers.append(full_num)
-                        if num_data.get('country') or full_num:
-                            _, detected_c_code = get_country_info_by_range_or_text(str(full_num), num_data.get('country', ''))
+                        _, detected_c_code = get_country_info_by_range_or_text(str(full_num), num_data.get('country', ''))
 
             if len(assigned_numbers) > 0:
                 flag, final_c_code = get_country_info_by_range_or_text(range_value, detected_c_code)
@@ -231,7 +205,6 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 ]
                 reply_markup = InlineKeyboardMarkup(keyboard)
 
-                # টেবিল ফরম্যাটে সুন্দর করে সাজিয়ে ২ কলামে বা সুশৃঙ্খলভাবে দেখানো হচ্ছে
                 result_msg = (
                     f"╔═══════════════════════╗\n"
                     f"║ {flag} **[{final_c_code}] ASSIGNED NUMBERS** ║\n"
@@ -251,7 +224,7 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await query.edit_message_text("❌ দুঃখিত, বর্তমানে এই রেঞ্জে কোনো নম্বর স্টক নেই।")
                 
         except Exception as e:
-            await query.edit_message_text(f"এরর: {e}")
+            await query.edit_message_text("❌ সার্ভার থেকে রেসপন্স পেতে দেরি হচ্ছে। আবার চেষ্টা করুন।")
 
     elif data_code == "back_to_menu":
         await query.message.delete()
@@ -262,11 +235,11 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
-    app.job_queue.run_repeating(auto_otp_checker, interval=5, first=3)
+    app.job_queue.run_repeating(auto_otp_checker, interval=10, first=3)
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
     app.add_handler(CallbackQueryHandler(button_click))
-    print("Multi-Panel Auto-OTP Bot is running...")
+    print("Fast Multi-Panel Auto-OTP Bot is running...")
     app.run_polling()
 
 if __name__ == '__main__':
