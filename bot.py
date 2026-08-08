@@ -122,12 +122,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             print(f"P1 Error: {e}")
 
-        # Panel 2 Ranges (Timeout increased to 15s)
+        # Panel 2 Ranges (Timeout set to 20 seconds)
         try:
             url_p2 = f'{PANEL_2_BASE}/liveaccess'
             headers_p2 = {'mauthapi': PANEL_2_KEY}
             
-            r2_raw = requests.get(url_p2, headers=headers_p2, timeout=15)
+            r2_raw = requests.get(url_p2, headers=headers_p2, timeout=20)
             r2 = r2_raw.json()
             
             if r2.get('meta', {}).get('code') == 200:
@@ -143,7 +143,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             'panel_type': 'panel2'
                         })
         except Exception as e:
-            print(f"P2 Error Detailed: {e}")
+            print(f"P2 Error Detailed (Timeout/Connection): {e}")
         
         if len(all_ranges) > 0:
             keyboard = []
@@ -164,7 +164,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup = InlineKeyboardMarkup(keyboard)
             await loading_msg.edit_text(f"⚡ **ACTIVE RANGES (Total: {len(all_ranges)})**\n\n_আপনার পছন্দের রেঞ্জটি সিলেক্ট করুন:_", parse_mode="Markdown", reply_markup=reply_markup)
         else:
-            await loading_msg.edit_text("❌ কোনো প্যানেল থেকেই রেঞ্জ পাওয়া যায়নি।")
+            await loading_msg.edit_text("❌ কোনো প্যানেল থেকেই রেঞ্জ পাওয়া যায়নি। (প্যানেল ২ টাইমআউট হতে পারে)")
             
     elif text == "📩 Check Live OTP":
         loading_msg = await update.message.reply_text("ওটিপি চেক করা হচ্ছে...")
@@ -286,7 +286,7 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
     app.add_handler(CallbackQueryHandler(button_click))
     print("Multi-Panel Auto-OTP Bot is running...")
-    app.run_polling()
+    app.run_polling(drop_pending_updates=True)
 
 if __name__ == '__main__':
     main()
