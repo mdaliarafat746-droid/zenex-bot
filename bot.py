@@ -14,7 +14,7 @@ BOT_TOKEN = "8998738234:AAGpV1zS4miYRC9AxNpSHvJNyWPgkfI9-U4"
 PANEL_1_KEY = "ZNX_5GJKQ6O8MT1F20MSW2G9K4V9"
 PANEL_2_KEY = "MYSM6BGQ7U3"
 
-# স্ক্রিনশট অনুযায়ী প্যানেল ২ এর সঠিক বেস পাথ
+# প্যানেল ২ এর সঠিক বেস পাথ
 PANEL_2_BASE = "https://api.2oo9.cloud/MXS47FLFXOU/tnemn/@public/api"
 
 ADMIN_CHAT_ID = "6470943912"  
@@ -37,6 +37,10 @@ def get_country_info_by_range_or_text(range_str, country_field, raw_text=""):
         return "🇹🇬", "TG"
     elif r_str.startswith("237") or "cameroon" in combined:
         return "🇨🇲", "CM"
+    elif r_str.startswith("225") or "ivory" in combined:
+        return "🇨🇮", "CI"
+    elif r_str.startswith("880") or "bangladesh" in combined:
+        return "🇧🇩", "BD"
     
     if "malaysia" in combined:
         return "🇲🇾", "MY"
@@ -119,9 +123,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             print(f"P1 Error: {e}")
 
-        # Panel 2 Ranges (Using liveaccess endpoint)
+        # Panel 2 Ranges (Fixed & Optimized)
         try:
-            r2 = requests.get(f'{PANEL_2_BASE}/liveaccess', headers={'mauthapi': PANEL_2_KEY}, timeout=5).json()
+            url_p2 = f'{PANEL_2_BASE}/liveaccess'
+            r2 = requests.get(url_p2, headers={'mauthapi': PANEL_2_KEY}, timeout=5).json()
             if r2.get('meta', {}).get('code') == 200:
                 services_list = r2.get('data', {}).get('services', [])
                 for srv_item in services_list:
@@ -220,11 +225,11 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             assigned_numbers.append(full_num)
                             _, detected_c_code = get_country_info_by_range_or_text(str(full_num), num_data.get('country', ''))
                 else:
-                    # স্ক্রিনশটের ডকুমেন্টেশন অনুযায়ী সঠিক বডি: {"rid": "26134"}
+                    clean_rid = str(range_value).replace("XXX", "").replace("xx", "").replace("XX", "")
                     resp = requests.post(
                         f'{PANEL_2_BASE}/getnum',
                         headers={'mauthapi': PANEL_2_KEY, 'Content-Type': 'application/json'},
-                        json={"rid": str(range_value).replace("XXX", "")},
+                        json={"rid": clean_rid},
                         timeout=5
                     ).json()
                     if resp.get('meta', {}).get('code') == 200:
