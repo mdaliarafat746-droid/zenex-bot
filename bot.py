@@ -41,7 +41,6 @@ def get_country_info_by_range_or_text(range_str, country_field, raw_text=""):
     c_field = str(country_field).lower()
     combined = f"{r_str} {c_field} {str(raw_text).lower()}".strip()
     
-    # প্রিফিক্স এবং কান্ট্রি ফিলд অনুযায়ী নিখুঁত ফ্ল্যাগ ও শর্ট কোড ম্যাপিং
     if r_str.startswith("992") or "tajikistan" in combined or "tj" in c_field:
         return "🇹🇯", "TJ", "TAJIKISTAN"
     elif r_str.startswith("261") or "madagascar" in combined or "mg" in c_field:
@@ -62,7 +61,7 @@ def get_country_info_by_range_or_text(range_str, country_field, raw_text=""):
         return "🇨🇫", "CF", "CENTRAL AFRICA"
     elif r_str.startswith("229") or "benin" in combined or "bj" in c_field:
         return "🇧🇯", "BJ", "BENIN"
-    elif r_str.startswith("malaysia") or "my" in c_field:
+    elif "malaysia" in combined or "my" in c_field:
         return "🇲🇾", "MY", "MALAYSIA"
     elif "morocco" in combined or "ma" in c_field:
         return "🇲🇦", "MA", "MOROCCO"
@@ -89,7 +88,6 @@ def get_country_info_by_range_or_text(range_str, country_field, raw_text=""):
     elif "brazil" in combined or "br" in c_field:
         return "🇧🇷", "BR", "BRAZIL"
     else:
-        # যদি রেঞ্জের শুরু দিয়ে চেনা যায়
         if r_str.startswith("236"):
             return "🇨🇫", "CF", "CENTRAL AFRICA"
         elif r_str.startswith("229"):
@@ -98,18 +96,22 @@ def get_country_info_by_range_or_text(range_str, country_field, raw_text=""):
 
 def format_service_name(srv_name, range_str):
     s_lower = str(srv_name).lower()
-    if "face" in s_lower or "fb" in s_lower:
-        return "フェ Facebook" if "clone" in s_lower else "Facebook"
+    
+    if "clone" in s_lower:
+        return "💻 PC Clone"
+    elif "face" in s_lower or "fb" in s_lower:
+        if "new" in s_lower or "create" in s_lower:
+            return "🆕 New FB Create"
+        else:
+            return "📱 Facebook"
     elif "insta" in s_lower:
-        return "Instagram"
-    elif "clone" in s_lower:
-        return "PC Clone"
+        return "📸 Instagram"
     elif "telegram" in s_lower or "tg" in s_lower:
-        return "Telegram"
+        return "✈️ Telegram"
     elif "whatsapp" in s_lower or "wa" in s_lower:
-        return "WhatsApp"
+        return "💬 WhatsApp"
     else:
-        return s_lower.capitalize() if s_lower else "General"
+        return f"🔹 {s_lower.capitalize()}"
 
 async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
     try:
@@ -190,7 +192,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 flag, c_code, full_c_name = get_country_info_by_range_or_text(rng, api_country, srv)
                 formatted_srv = format_service_name(srv, rng)
                 
-                # বাটনে ফ্ল্যাগ, কান্ট্রি কোড, রেঞ্জ এবং সার্ভিস খুব পরিষ্কারভাবে দেখাবে
                 btn_text = f"{flag} [{c_code}] {rng} | {formatted_srv}"
                 keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"get3_{rng}_{c_code}")])
             
