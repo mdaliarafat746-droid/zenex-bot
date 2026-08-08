@@ -138,18 +138,16 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
                     flag, c_code, _ = get_country_info_by_range_or_text(str(num), country)
                     srv_emoji = get_service_emoji(service)
                     
-                    msg_text = f"{flag} **{c_code}** {srv_emoji} `+{num}`"
-                    
-                    # ক্যাবল ব্যাক ডাটা একদম নিরাপদ রাখা হয়েছে যাতে সহজে কপি কাজ করে
-                    btn_label = f"🔐 {otp_text}"
-                    keyboard = [[InlineKeyboardButton(btn_label, callback_data=f"cp|{otp_text}")]]
-                    reply_markup = InlineKeyboardMarkup(keyboard)
+                    # নম্বর ও ওটিপি দুটোই মেসেজের ভেতর ট্যাপ-টু-কপি ফরম্যাটে দেওয়া হলো
+                    msg_text = (
+                        f"{flag} **{c_code}** {srv_emoji} `+{num}`\n"
+                        f"🔐 `{otp_text}`\n"
+                    )
                     
                     await context.bot.send_message(
                         chat_id=ADMIN_CHAT_ID, 
                         text=msg_text, 
-                        parse_mode="Markdown",
-                        reply_markup=reply_markup
+                        parse_mode="Markdown"
                     )
             
             if updated:
@@ -228,12 +226,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     data_code = query.data
-
-    if data_code.startswith("cp|"):
-        val_to_copy = data_code.split("|", 1)[1]
-        # টেলিগ্রাম পপআপ নোটিফিকেশনে কোডটি সফলভাবে দেখাবে
-        await query.answer(text=f"Copied: {val_to_copy}", show_alert=True)
-        return
 
     await query.answer()
 
