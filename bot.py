@@ -21,7 +21,7 @@ NID_FILE = "notified_nids.json"
 def load_nids():
     if os.path.exists(NID_FILE):
         try:
-            with open(NID_FILE, "r") as f:
+            with open(NID_FILE, "r", encoding="utf-8") as f:
                 return set(json.load(f))
         except:
             return set()
@@ -29,8 +29,8 @@ def load_nids():
 
 def save_nids(nids_set):
     try:
-        nids_list = list(nids_set)[-3000:]
-        with open(NID_FILE, "w") as f:
+        nids_list = list(nids_set)[-5000:]
+        with open(NID_FILE, "w", encoding="utf-8") as f:
             json.dump(nids_list, f)
     except Exception as e:
         print(f"NID Save Error: {e}")
@@ -123,11 +123,12 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
             
             updated = False
             for item in otps_list:
-                num = item.get('number')
-                raw_otp = item.get('otp', '')
+                num = str(item.get('number')).strip()
+                raw_otp = str(item.get('otp', '')).strip()
                 otp_text = extract_pure_code(raw_otp)
                 service = item.get('service', 'Facebook')
                 
+                # ইউনিক সিগনেচার তৈরি যা দিয়ে ডাবল মেসেজ ফিল্টার হবে
                 unique_signature = f"{num}_{otp_text}"
                 
                 if unique_signature not in notified_nids:
@@ -135,10 +136,9 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
                     updated = True
                         
                     country = item.get('country', '')
-                    flag, c_code, _ = get_country_info_by_range_or_text(str(num), country)
+                    flag, c_code, _ = get_country_info_by_range_or_text(num, country)
                     srv_emoji = get_service_emoji(service)
                     
-                    # নম্বর ও ওটিপি দুটোই মেসেজের ভেতর ট্যাপ-টু-কপি ফরম্যাটে দেওয়া হলো
                     msg_text = (
                         f"{flag} **{c_code}** {srv_emoji} `+{num}`\n"
                         f"🔐 `{otp_text}`\n"
