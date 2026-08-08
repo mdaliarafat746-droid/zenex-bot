@@ -1,5 +1,6 @@
 import logging
 import requests
+import time
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, CallbackQueryHandler, MessageHandler, filters
 import sys
@@ -14,8 +15,8 @@ PANEL_1_KEY = "ZNX_5GJKQ6O8MT1F20MSW2G9K4V9"
 
 ADMIN_CHAT_ID = "6470943912"  
 
-# প্যানেলের ক্রিপ্টোগ্রাফিক নিড (nid) ট্র্যাক করার জন্য সেট
-notified_nids = set()
+# ডুপ্লিকেট রোধ করার জন্য টাইম স্ট্যাম্প ডিকশনারি
+recent_sent_otps = {}
 
 def get_country_info_by_range_or_text(range_str, country_field, raw_text=""):
     r_str = str(range_str)
@@ -89,26 +90,39 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
         res1 = requests.get('https://api.zenexnetwork.com/v1/numsuccess/info', headers={'mapikey': PANEL_1_KEY}, timeout=10).json()
         if res1.get('meta', {}).get('code') == 200:
             otps_list = res1.get('data', {}).get('otps', [])
-            for item in otps_list:
-                nid = item.get('nid')
+            current_time = time.time()
+            
+            # পুরোনো রেকর্ডগুলো ক্লিনআপ করা (১০ মিনিটের বেশি পুরোনো ডাটা মুছে ফেলা)
+            keys_to_del = [k for k, t in recent_sent_otps.items() if current_time - t > 600]
+            for k in keys_to_del:
+                del recent_sent_otps[k]
                 
-                if nid and nid not in notified_nids:
-                    notified_nids.add(nid)
-                    
-                    if len(notified_nids) > 1000:
-                        notified_nids.pop()
-                        
-                    num = item.get('number')
-                    otp_text = item.get('otp')
-                    country = item.get('country', '')
-                    service = item.get('service', 'Facebook')
-                    
-                    flag, c_code = get_country_info_by_range_or_text(str(num), country)
-                    await context.bot.send_message(
-                        chat_id=ADMIN_CHAT_ID, 
-                        text=f"⚔️ **[P1] {service} Received.**\n❓ {flag} {c_code}\n📞 `{num}`\n🔑 `{otp_text}`", 
-                        parse_mode="Markdown"
-                    )
+            for item in otps_list:
+                num = item.get('number')
+                otp_text = item.get('otp')
+                
+                if not num or not otp_text:
+                    continue
+                
+                # একই নম্বর এবং একই ওটিপি টেক্সট দিয়ে ইউনিক কী তৈরি করা
+                unique_key = f"{num}_{otp_text}"
+                
+                # যদি এই ওটিপি গত ১০ মিনিটের মধ্যে অলরেডি পাঠানো হয়ে থাকে, তবে স্কিপ করবে
+                if unique_key in recent_sent_otps:
+                    continue
+                
+                # নতুন হলে টাইম সেভ করে মেসেজ পাঠানো হবে
+                recent_sent_otps[unique_key] = current_time
+                
+                country = item.get('country', '')
+                service = item.get('service', 'Facebook')
+                
+                flag, c_code = get_country_info_by_range_or_text(str(num), country)
+                await context.bot.send_message(
+                    chat_id=ADMIN_CHAT_ID, 
+                    text=f"⚔️ **[P1] {service} Received.**\n❓ {flag} {c_code}\n📞 `{num}`\n🔑 `{otp_text}`", 
+                    parse_mode="Markdown"
+                )
     except Exception as e:
         print(f"OTP Checker Error: {e}")
 
@@ -249,7 +263,6 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
     app.add_handler(CallbackQueryHandler(button_click))
     print("Auto-OTP Bot is running smoothly...")
-    # ডুপ্লিকেট কনফ্লিক্ট এড়াতে পুরোনো আপডেট ড্রপ করার পারামিটার সহ রান করা হলো
     app.run_polling(drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
