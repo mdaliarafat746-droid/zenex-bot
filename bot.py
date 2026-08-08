@@ -90,13 +90,11 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
         if res1.get('meta', {}).get('code') == 200:
             otps_list = res1.get('data', {}).get('otps', [])
             for item in otps_list:
-                # প্যানেলের নিজস্ব Cryptographic message identifier (nid) দিয়ে চেক করা হচ্ছে
                 nid = item.get('nid')
                 
                 if nid and nid not in notified_nids:
                     notified_nids.add(nid)
                     
-                    # মেমোরি অপ্টিমাইজ করার জন্য সাইজ লিমিট রাখা হলো
                     if len(notified_nids) > 1000:
                         notified_nids.pop()
                         
@@ -251,7 +249,8 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
     app.add_handler(CallbackQueryHandler(button_click))
     print("Auto-OTP Bot is running smoothly...")
-    app.run_polling(drop_pending_updates=True)
+    # ডুপ্লিকেট কনফ্লিক্ট এড়াতে পুরোনো আপডেট ড্রপ করার পারামিটার সহ রান করা হলো
+    app.run_polling(drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
     main()
