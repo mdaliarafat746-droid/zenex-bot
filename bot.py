@@ -106,6 +106,7 @@ def format_service_name(item):
     else:
         return "✨ New FB"
 
+# ব্যাকগ্রাউন্ডে স্বয়ংক্রিয়ভাবে ওটিপি চেক করার ফাংশন
 async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
     try:
         res1 = requests.get('https://api.zenexnetwork.com/v1/numsuccess/info', headers={'mapikey': PANEL_1_KEY}, timeout=10).json()
@@ -120,6 +121,7 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
                 
                 unique_signature = f"{num}_{otp_text}"
                 
+                # নতুন ওটিপি হলে সাথে সাথে নোটিফিকেশন পাঠাবে
                 if unique_signature not in notified_nids:
                     notified_nids.add(unique_signature)
                     updated = True
@@ -267,7 +269,6 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     f"_👆 উপরের নম্বরের ওপর ট্যাপ করলেই খুব সহজে কপি হয়ে যাবে!_"
                 )
 
-                # একই মেসেজের ভেতরে এডিট করে নম্বরগুলো দেখানো হচ্ছে যাতে আলাদা আরেকটি মেসেজ না আসে
                 await query.edit_message_text(result_msg, parse_mode="Markdown", reply_markup=reply_markup)
             else:
                 await query.edit_message_text("❌ দুঃখিত, বর্তমানে এই রেঞ্জে কোনো নম্বর স্টক নেই।")
@@ -280,7 +281,6 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer(text=f"কপি করা হয়েছে: {val_to_copy}", show_alert=True)
 
     elif data_code == "back_to_menu":
-        # Change Country এ ক্লিক করলে পুনরায় ফ্রেশ রেঞ্জ লিস্ট প্যানেল থেকে লোড করে একই মেসেজে দেখাবে
         try:
             loading_msg = query.message
             all_ranges = []
@@ -315,7 +315,9 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     
+    # এখানে ব্যাকগ্রাউন্ড জব সেট করা হয়েছে যা প্রতি ১০ সেকেন্ড পর পর অটো রান হবে
     app.job_queue.run_repeating(auto_otp_checker, interval=10, first=3)
+    
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
     app.add_handler(CallbackQueryHandler(button_click))
