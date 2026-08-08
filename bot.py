@@ -96,7 +96,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
 
     if text == "📱 Get Number":
-        loading_msg = await update.message.reply_text("প্যানেল থেকে একটিভ রেঞ্জ লোড করা হচ্ছে...")
+        loading_msg = await update.message.reply_text("প্যানেল থেকে রিয়েল-টাইম হিট রেঞ্জ লোড করা হচ্ছে...")
         
         try:
             response = requests.get(
@@ -113,7 +113,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 for item in active_ranges:
                     rng = item.get('range')
                     srv = item.get('service', 'Facebook')
-                    hits = item.get('hits', '0')
+                    
+                    # API অবজেক্ট থেকে ডাইনামিক ফিল্ড বা সঠিক হিট কাউন্ট রিড করার লজিক
+                    hits = None
+                    for k, v in item.items():
+                        if 'hit' in k.lower() or 'count' in k.lower() or 'success' in k.lower():
+                            if str(v).isdigit() and int(v) > 0:
+                                hits = v
+                                break
+                    if hits is None:
+                        hits = item.get('hits', '0')
                     
                     mode_type = None
                     for key in ['mode', 'type', 'category', 'sub_service', 'tag', 'status', 'label']:
@@ -131,7 +140,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 
                 await loading_msg.edit_text(
-                    "⚡ **TOP HITS RANGES**\n\n_সঠিক রেঞ্জ ও ক্যাটাগরি নিচে দেওয়া হলো:_",
+                    "⚡ **TOP HITS RANGES (Real-time)**\n\n_সঠিক ও আপডেট হিট রেঞ্জগুলো নিচে দেওয়া হলো:_",
                     parse_mode="Markdown",
                     reply_markup=reply_markup
                 )
