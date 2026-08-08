@@ -96,7 +96,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
 
     if text == "📱 Get Number":
-        loading_msg = await update.message.reply_text("প্যানেল থেকে রিয়েল-টাইম হিট রেঞ্জ লোড করা হচ্ছে...")
+        loading_msg = await update.message.reply_text("প্যানেল থেকে রেঞ্জ লোড করা হচ্ছে...")
         
         try:
             response = requests.get(
@@ -114,16 +114,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     rng = item.get('range')
                     srv = item.get('service', 'Facebook')
                     
-                    # API অবজেক্ট থেকে ডাইনামিক ফিল্ড বা সঠিক হিট কাউন্ট রিড করার লজিক
-                    hits = None
-                    for k, v in item.items():
-                        if 'hit' in k.lower() or 'count' in k.lower() or 'success' in k.lower():
-                            if str(v).isdigit() and int(v) > 0:
-                                hits = v
-                                break
-                    if hits is None:
-                        hits = item.get('hits', '0')
-                    
+                    # ক্যাটাগরি বা সাব-টাইপ ডিটেক্ট করা
                     mode_type = None
                     for key in ['mode', 'type', 'category', 'sub_service', 'tag', 'status', 'label']:
                         if item.get(key):
@@ -133,14 +124,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     if not mode_type:
                         mode_type = "New Fb" if "new" in str(item).lower() else "PC Clone"
 
-                    btn_text = f"{rng} | {srv} ({mode_type}) - [{hits} Hits]"
+                    # হিটের অংশটি বাদ দিয়ে শুধু রেঞ্জ এবং সার্ভিস/ক্যাটাগরি রাখা হলো
+                    btn_text = f"{rng} | {srv} ({mode_type})"
                     keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"get3_{rng}_{srv}")])
                 
                 keyboard.append([InlineKeyboardButton("🔙 Close", callback_data="close_menu")])
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 
                 await loading_msg.edit_text(
-                    "⚡ **TOP HITS RANGES (Real-time)**\n\n_সঠিক ও আপডেট হিট রেঞ্জগুলো নিচে দেওয়া হলো:_",
+                    "⚡ **ACTIVE RANGES**\n\n_সঠিক রেঞ্জ ও ক্যাটাগরি নিচে দেওয়া হলো:_",
                     parse_mode="Markdown",
                     reply_markup=reply_markup
                 )
