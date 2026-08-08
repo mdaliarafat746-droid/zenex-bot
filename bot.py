@@ -13,7 +13,9 @@ BOT_TOKEN = "8998738234:AAGpV1zS4miYRC9AxNpSHvJNyWPgkfI9-U4"
 
 PANEL_1_KEY = "ZNX_5GJKQ6O8MT1F20MSW2G9K4V9"
 PANEL_2_KEY = "MYSM6BGQ7U3"
-PANEL_2_BASE = "https://api.2oo9.cloud/MXS47FLFXOU/tnemn/public/api"
+
+# আপনার দেওয়া ওয়েবসাইট এবং স্ক্রিনশটের সঠিক বেস ইউআরএল
+PANEL_2_BASE = "https://mnitnetwork.com/MXS47FLFXOU/tnemn/@public/api"
 
 ADMIN_CHAT_ID = "6470943912"  
 notified_otps = set()
@@ -80,7 +82,7 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
     except:
         pass
 
-    # Panel 2 OTP Check (Updated based on your screenshot: /success-otp)
+    # Panel 2 OTP Check
     try:
         res2 = requests.get(f'{PANEL_2_BASE}/success-otp', headers={'mauthapi': PANEL_2_KEY}, timeout=5).json()
         if res2.get('meta', {}).get('code') == 200:
@@ -116,10 +118,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 for r in r1.get('data', {}).get('active_ranges', []):
                     r['panel_type'] = 'panel1'
                     all_ranges.append(r)
-        except:
-            pass
+        except Exception as e:
+            print(f"P1 Error: {e}")
 
-        # Panel 2 Ranges (Updated based on your screenshot: /liveaccess)
+        # Panel 2 Ranges (Using mnitnetwork.com API)
         try:
             r2 = requests.get(f'{PANEL_2_BASE}/liveaccess', headers={'mauthapi': PANEL_2_KEY}, timeout=5).json()
             if r2.get('meta', {}).get('code') == 200:
@@ -135,11 +137,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             'panel_type': 'panel2'
                         })
         except Exception as e:
-            print(f"Panel 2 Error: {e}")
+            print(f"P2 Error: {e}")
         
         if len(all_ranges) > 0:
             keyboard = []
-            for item in all_ranges[:25]:
+            for item in all_ranges[:30]:
                 rng = str(item.get('range', '') or item.get('rid', ''))
                 srv = item.get('service', 'Service')
                 api_country = item.get('country', '')
@@ -163,7 +165,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             msg = "📥 **Live OTP Payloads:**\n\n"
             
-            # Panel 1 OTPs
             res1 = requests.get('https://api.zenexnetwork.com/v1/numsuccess/info', headers={'mapikey': PANEL_1_KEY}, timeout=5).json()
             if res1.get('meta', {}).get('code') == 200:
                 for item in res1.get('data', {}).get('otps', [])[:3]:
@@ -171,7 +172,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     flag, c_code = get_country_info_by_range_or_text(str(num), country)
                     msg += f"[P1] 📞 `{num}` | {flag} {c_code}\n🔑 `{otp_text}`\n-------------------\n"
 
-            # Panel 2 OTPs
             res2 = requests.get(f'{PANEL_2_BASE}/success-otp', headers={'mauthapi': PANEL_2_KEY}, timeout=5).json()
             if res2.get('meta', {}).get('code') == 200:
                 for item in res2.get('data', {}).get('otps', [])[:3]:
@@ -222,7 +222,6 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             assigned_numbers.append(full_num)
                             _, detected_c_code = get_country_info_by_range_or_text(str(full_num), num_data.get('country', ''))
                 else:
-                    # Panel 2 Get Number (Using 'rid' parameter based on API format)
                     resp = requests.post(
                         f'{PANEL_2_BASE}/getnum',
                         headers={'mauthapi': PANEL_2_KEY, 'Content-Type': 'application/json'},
