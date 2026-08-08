@@ -3,7 +3,7 @@ import requests
 import json
 import os
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
-from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ConversationHandler
+from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, CallbackQueryHandler, MessageHandler, filters
 import sys
 import io
 
@@ -16,7 +16,6 @@ PANEL_1_KEY = "ZNX_5GJKQ6O8MT1F20MSW2G9K4V9"
 ADMIN_CHAT_ID = "6470943912"  
 
 NID_FILE = "notified_nids.json"
-WAITING_FOR_RANGE = 1
 
 def load_nids():
     if os.path.exists(NID_FILE):
@@ -29,7 +28,6 @@ def load_nids():
 
 def save_nids(nids_set):
     try:
-        # ফাইলের সাইজ খুব বড় হওয়া রোধ করতে শেষ ৩০০০ টি রাখা হলো
         nids_list = list(nids_set)[-3000:]
         with open(NID_FILE, "w") as f:
             json.dump(nids_list, f)
@@ -106,19 +104,20 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
             
             updated = False
             for item in otps_list:
-                # প্যানেলের দেওয়া ইউনিক 'nid' অথবা ফলব্যাক হিসেবে নম্বর ও ওটিপির কম্বিনেশন ব্যবহার
-                nid = item.get('nid') or f"{item.get('number')}_{item.get('otp')}"
+                num = item.get('number')
+                otp_text = item.get('otp')
+                service = item.get('service', 'Facebook')
                 
-                if nid not in notified_nids:
-                    notified_nids.add(nid)
+                # নম্বর এবং ওটিপির কম্বিনেশন দিয়ে ইউনিক সিগনেচার (ডাবল ওটিপি ব্লক করার জন্য)
+                unique_signature = f"{num}_{otp_text}"
+                
+                if unique_signature not in notified_nids:
+                    notified_nids.add(unique_signature)
                     updated = True
                         
-                    num = item.get('number')
-                    otp_text = item.get('otp')
                     country = item.get('country', '')
-                    service = item.get('service', 'Facebook')
-                    
                     flag, c_code, _ = get_country_info_by_range_or_text(str(num), country)
+                    
                     await context.bot.send_message(
                         chat_id=ADMIN_CHAT_ID, 
                         text=f"⚔️ **[P1] {service} Received.**\n❓ {flag} {c_code}\n📞 `{num}`\n🔑 `{otp_text}`", 
