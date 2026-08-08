@@ -15,7 +15,6 @@ PANEL_1_KEY = "ZNX_5GJKQ6O8MT1F20MSW2G9K4V9"
 
 ADMIN_CHAT_ID = "6470943912"  
 
-# ডুপ্লিকেট রোধ করার জন্য টাইম স্ট্যাম্প ডিকশনারি
 recent_sent_otps = {}
 
 def get_country_info_by_range_or_text(range_str, country_field, raw_text=""):
@@ -24,66 +23,61 @@ def get_country_info_by_range_or_text(range_str, country_field, raw_text=""):
     combined = f"{r_str} {c_field} {str(raw_text).lower()}".strip()
     
     if r_str.startswith("992") or "tajikistan" in combined:
-        return "🇹🇯", "TJ"
+        return "🇹🇯", "TJ", "MADAGASCAR (MG)" if "madagascar" in combined else "TAJIKISTAN"
     elif r_str.startswith("261") or "madagascar" in combined:
-        return "🇲🇬", "MG"
+        return "🇲🇬", "MG", "MADAGASCAR"
     elif r_str.startswith("380") or "ukraine" in combined:
-        return "🇺🇦", "UA"
+        return "🇺🇦", "UA", "UKRAINE"
     elif r_str.startswith("224") or "guinea" in combined:
-        return "🇬🇳", "GN"
+        return "🇬🇳", "GN", "GUINEA"
     elif r_str.startswith("228") or "togo" in combined:
-        return "🇹🇬", "TG"
+        return "🇹🇬", "TG", "TOGO"
     elif r_str.startswith("237") or "cameroon" in combined:
-        return "🇨🇲", "CM"
+        return "🇨🇲", "CM", "CAMEROON"
     elif r_str.startswith("225") or "ivory" in combined:
-        return "🇨🇮", "CI"
+        return "🇨🇮", "CI", "IVORY COAST"
     elif r_str.startswith("880") or "bangladesh" in combined:
-        return "🇧🇩", "BD"
+        return "🇧🇩", "BD", "BANGLADESH"
     
     if "malaysia" in combined:
-        return "🇲🇾", "MY"
+        return "🇲🇾", "MY", "MALAYSIA"
     elif "morocco" in combined:
-        return "🇲🇦", "MA"
+        return "🇲🇦", "MA", "MOROCCO"
     elif "russian" in combined or "russia" in combined:
-        return "🇷🇺", "RU"
+        return "🇷🇺", "RU", "RUSSIA"
     elif "united kingdom" in combined or "uk" in combined:
-        return "🇬🇧", "UK"
+        return "🇬🇧", "UK", "UNITED KINGDOM"
     elif "sudan" in combined:
-        return "🇸🇩", "SD"
+        return "🇸🇩", "SD", "SUDAN"
     elif "tanzania" in combined:
-        return "🇹🇿", "TZ"
+        return "🇹🇿", "TZ", "TANZANIA"
     elif "zimbabwe" in combined:
-        return "🇿🇼", "ZW"
+        return "🇿🇼", "ZW", "ZIMBABWE"
     elif "algeria" in combined:
-        return "🇩🇿", "DZ"
+        return "🇩🇿", "DZ", "ALGERIA"
     elif "bolivia" in combined:
-        return "🇧🇴", "BO"
+        return "🇧🇴", "BO", "BOLIVIA"
     elif "egypt" in combined:
-        return "🇪🇬", "EG"
+        return "🇪🇬", "EG", "EGYPT"
     elif "india" in combined:
-        return "🇮🇳", "IN"
+        return "🇮🇳", "IN", "INDIA"
     elif "ghana" in combined:
-        return "🇬🇭", "GH"
+        return "🇬🇭", "GH", "GHANA"
     elif "brazil" in combined:
-        return "🇧🇷", "BR"
+        return "🇧🇷", "BR", "BRAZIL"
     else:
-        return "🌐", "GLOBAL"
+        return "🌐", "GLOBAL", "GLOBAL"
 
 def format_service_name(srv_name, range_str):
     s_lower = str(srv_name).lower()
     r_str = str(range_str)
     
     if "face" in s_lower or "fb" in s_lower:
-        if "clone" in s_lower:
-            return "Facebook (Fb Clone)"
-        elif "new" in s_lower or r_str.endswith("4XXX") or r_str.endswith("4xx"):
-            return "Facebook (New Fb)"
-        else:
-            return "Facebook (Fb Clone)"
+        return "Facebook"
     elif "insta" in s_lower:
-        return "Instagram (General)"
+        return "Instagram"
     else:
-        return f"{srv_name} (General)"
+        return s_lower.capitalize()
 
 async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
     try:
@@ -92,7 +86,6 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
             otps_list = res1.get('data', {}).get('otps', [])
             current_time = time.time()
             
-            # পুরোনো রেকর্ডগুলো ক্লিনআপ করা (১০ মিনিটের বেশি পুরোনো ডাটা মুছে ফেলা)
             keys_to_del = [k for k, t in recent_sent_otps.items() if current_time - t > 600]
             for k in keys_to_del:
                 del recent_sent_otps[k]
@@ -104,20 +97,16 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
                 if not num or not otp_text:
                     continue
                 
-                # একই নম্বর এবং একই ওটিপি টেক্সট দিয়ে ইউনিক কী তৈরি করা
                 unique_key = f"{num}_{otp_text}"
-                
-                # যদি এই ওটিপি গত ১০ মিনিটের মধ্যে অলরেডি পাঠানো হয়ে থাকে, তবে স্কিপ করবে
                 if unique_key in recent_sent_otps:
                     continue
                 
-                # নতুন হলে টাইম সেভ করে মেসেজ পাঠানো হবে
                 recent_sent_otps[unique_key] = current_time
                 
                 country = item.get('country', '')
                 service = item.get('service', 'Facebook')
                 
-                flag, c_code = get_country_info_by_range_or_text(str(num), country)
+                flag, c_code, _ = get_country_info_by_range_or_text(str(num), country)
                 await context.bot.send_message(
                     chat_id=ADMIN_CHAT_ID, 
                     text=f"⚔️ **[P1] {service} Received.**\n❓ {flag} {c_code}\n📞 `{num}`\n🔑 `{otp_text}`", 
@@ -157,7 +146,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 srv = item.get('service', 'Service')
                 api_country = item.get('country', '')
                 
-                flag, c_code = get_country_info_by_range_or_text(rng, api_country, srv)
+                flag, c_code, _ = get_country_info_by_range_or_text(rng, api_country, srv)
                 formatted_srv = format_service_name(srv, rng)
                 
                 btn_text = f"{flag} {rng} | {formatted_srv}"
@@ -177,7 +166,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if res1.get('meta', {}).get('code') == 200:
                 for item in res1.get('data', {}).get('otps', [])[:5]:
                     num, otp_text, country = item.get('number'), item.get('otp'), item.get('country', '')
-                    flag, c_code = get_country_info_by_range_or_text(str(num), country)
+                    flag, c_code, _ = get_country_info_by_range_or_text(str(num), country)
                     msg += f"[P1] 📞 `{num}` | {flag} {c_code}\n🔑 `{otp_text}`\n-------------------\n"
             await loading_msg.edit_text(msg, parse_mode="Markdown")
         except Exception as e:
@@ -218,29 +207,35 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     full_num = num_data.get('full_number')
                     if full_num:
                         assigned_numbers.append(full_num)
-                        _, detected_c_code = get_country_info_by_range_or_text(str(full_num), num_data.get('country', ''))
+                        _, detected_c_code, _ = get_country_info_by_range_or_text(str(full_num), num_data.get('country', ''))
 
             if len(assigned_numbers) > 0:
-                flag, final_c_code = get_country_info_by_range_or_text(range_value, detected_c_code)
-                keyboard = [
-                    [InlineKeyboardButton("🔄 Next Number", callback_data=f"get3_{range_value}_{c_code}"), 
-                     InlineKeyboardButton("🌐 Country", callback_data="back_to_menu")]
-                ]
+                flag, final_c_code, full_country_name = get_country_info_by_range_or_text(range_value, detected_c_code)
+                
+                # স্ক্রিনশটের মতো সুন্দর স্টাইলে ইনলাইন বাটন তৈরি করা
+                keyboard = []
+                
+                # ওপরের হেডার স্টাইল টেক্সট (যেমন স্ক্রিনশটে দেখা যায়)
+                header_text = f"❓ Country: {flag} {full_country_name}"
+                
+                # প্রতিটি নম্বরের জন্য ফেসবুক লোগো সহ স্টাইলিশ বাটন
+                for num in assigned_numbers:
+                    btn_label = f"🇫 +{num}" if not str(num).startswith("+") else f"🇫 {num}"
+                    # বাটনে ক্লিক করলে যাতে নম্বরটি পপআপ বা নোটিফিকেশনে কপি হয় বা ট্রিগার করে
+                    keyboard.append([InlineKeyboardButton(btn_label, callback_data=f"copy_{num}")])
+                
+                # নিচের কন্ট্রোল বাটনগুলো
+                keyboard.append([InlineKeyboardButton("🔄 Change Number", callback_data=f"get3_{range_value}_{c_code}")])
+                keyboard.append([InlineKeyboardButton("🌐 Change Country", callback_data="back_to_menu")])
+                keyboard.append([InlineKeyboardButton("🔑 OTP Group", url="https://t.me/your_otp_group")]) # আপনার ওটিপি গ্রুপের লিংক এখানে দিতে পারেন
+                
                 reply_markup = InlineKeyboardMarkup(keyboard)
 
                 result_msg = (
-                    f"╔══════════════════════════════╗\n"
-                    f"║ {flag} **[{final_c_code}] ASSIGNED (Panel 1)** ║\n"
-                    f"╚══════════════════════════════╝\n\n"
-                    f"💰 **Per OTP:** 0.30 TK\n\n"
-                    f"| SL | Assigned Numbers |\n"
-                    f"| :---: | :--- |\n"
+                    f"❓ **Country:** {flag} **{full_country_name}**\n"
+                    f"🎟️ **Waiting for OTP**\n\n"
+                    f"_নিচের বাটনগুলোতে ক্লিক করে নম্বর কপি করুন:_"
                 )
-                
-                for idx, num in enumerate(assigned_numbers, 1):
-                    result_msg += f"| **0{idx}** | `{num}` {flag} |\n"
-                
-                result_msg += "\n📌 _কপি করতে নম্বরের উপর ট্যাপ করুন।_"
 
                 await query.edit_message_text(result_msg, parse_mode="Markdown", reply_markup=reply_markup)
             else:
@@ -248,6 +243,10 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 
         except Exception as e:
             await query.edit_message_text("❌ সার্ভার থেকে রেসপন্স পেতে দেরি হচ্ছে। আবার চেষ্টা করুন।")
+
+    elif data_code.startswith("copy_"):
+        num_to_copy = data_code.split("_")[1]
+        await query.answer(text=f"নম্বর কপি করা হয়েছে: +{num_to_copy}", show_alert=True)
 
     elif data_code == "back_to_menu":
         await query.message.delete()
