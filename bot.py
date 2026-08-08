@@ -20,7 +20,7 @@ def get_country_info_by_range_or_text(range_str, text):
     combined = f"{range_str} {text}".lower()
     
     if "992" in range_str:
-        return "🇲🇦", "MA"
+        return "🇹🇯", "TJ"
     elif "261" in range_str:
         return "🇲🇬", "MG"
     elif "380" in range_str:
@@ -36,6 +36,8 @@ def get_country_info_by_range_or_text(range_str, text):
         return "🇲🇾", "MY"
     elif "morocco" in combined:
         return "🇲🇦", "MA"
+    elif "tajikistan" in combined:
+        return "🇹🇯", "TJ"
     elif "russian" in combined or "russia" in combined:
         return "🇷🇺", "RU"
     elif "sudan" in combined:
@@ -87,7 +89,7 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
                     country = item.get('country', 'Unknown')
                     service = item.get('service', 'Facebook')
                     
-                    flag, c_code = get_country_info_by_range_or_text("", country)
+                    flag, c_code = get_country_info_by_range_or_text(str(num), country)
                     
                     alert_msg = (
                         f"⚔️ **{service} Received.**\n"
@@ -186,7 +188,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         num = item.get('number')
                         otp_text = item.get('otp')
                         country = item.get('country')
-                        flag, c_code = get_country_info_by_range_or_text("", country)
+                        flag, c_code = get_country_info_by_range_or_text(str(num), country)
                         msg += f"📞 নম্বর: `{num}`\n{flag} কোড: {c_code}\n💬 এসএমএস: __{otp_text}__\n-----------------------------------\n"
                     await loading_msg.edit_text(msg, parse_mode="Markdown")
                 else:
@@ -237,9 +239,10 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 res = response.json()
                 if res.get('meta', {}).get('code') == 200:
                     num_data = res.get('data', {})
-                    assigned_numbers.append(num_data.get('full_number'))
+                    full_num = num_data.get('full_number')
+                    assigned_numbers.append(full_num)
                     if num_data.get('country'):
-                        _, detected_c_code = get_country_info_by_range_or_text(range_value, num_data.get('country'))
+                        _, detected_c_code = get_country_info_by_range_or_text(str(full_num), num_data.get('country'))
 
             if len(assigned_numbers) > 0:
                 flag, final_c_code = get_country_info_by_range_or_text(range_value, detected_c_code)
