@@ -95,21 +95,22 @@ def get_country_info_by_range_or_text(range_str, country_field, raw_text=""):
         return "🌍", "INT", "INTERNATIONAL"
 
 def format_service_name(item):
-    # প্যানেল থেকে পুরো অবজেক্ট নিয়ে সার্ভিস এবং ক্যাটাগরি নিখুঁতভাবে রিড করা হবে
-    srv = str(item.get('service', '')).upper()
-    sub_type = str(item.get('type', '')).lower()
-    range_val = str(item.get('range', ''))
+    # প্যানেলের পুরো ডেটা এখানে প্রিন্ট হবে যাতে টার্মিনালে আসল কি-ওয়ার্ড দেখা যায়
+    print("API Item Data:", item)
     
-    combined_text = f"{srv} {sub_type} {range_val}".lower()
+    srv = str(item.get('service', '')).upper()
+    name_field = str(item.get('name', '')).lower()
+    desc_field = str(item.get('description', '')).lower()
+    combined_text = f"{srv} {name_field} {desc_field}".lower()
 
     if "clone" in combined_text or "pc" in combined_text:
         return "FACEBOOK | 🔴 PC Clone"
-    elif "new" in combined_text or "create" in combined_text or "fb" in combined_text:
+    elif "new" in combined_text or "create" in combined_text:
         return "FACEBOOK | 🟢 New Fb"
     elif "insta" in combined_text:
         return "INSTAGRAM"
     elif srv:
-        return srv
+        return f"{srv} | 🟢 New Fb"
     else:
         return "FACEBOOK | 🟢 New Fb"
 
@@ -191,7 +192,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 flag, c_code, _ = get_country_info_by_range_or_text(rng, api_country, str(item))
                 formatted_srv = format_service_name(item)
                 
-                # প্যানেলের স্টাইলে সুন্দরভাবে সাজানো হলো
                 btn_text = f"{flag} [{c_code}] {rng} | {formatted_srv}"
                 keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"get3_{rng}_{c_code}")])
             
