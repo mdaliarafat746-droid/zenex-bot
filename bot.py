@@ -16,42 +16,52 @@ ADMIN_CHAT_ID = "6470943912"
 
 notified_otps = set()
 
-def get_flag_by_text(text):
-    text = text.lower()
-    if "malaysia" in text:
-        return "🇲🇾"
-    elif "morocco" in text:
-        return "🇲🇦"
-    elif "russian" in text or "russia" in text:
-        return "🇷🇺"
-    elif "sudan" in text:
-        return "🇸🇩"
-    elif "tanzania" in text:
-        return "🇹🇿"
-    elif "zimbabwe" in text:
-        return "🇿🇼"
-    elif "algeria" in text:
-        return "🇩🇿"
-    elif "bolivia" in text:
-        return "🇧🇴"
-    elif "madagascar" in text:
-        return "🇲🇬"
-    elif "egypt" in text:
-        return "🇪🇬"
-    elif "togo" in text:
-        return "🇹🇬"
-    elif "uk" in text or "united kingdom" in text or "britain" in text:
-        return "🇬🇧"
-    elif "usa" in text or "united states" in text:
-        return "🇺🇸"
-    elif "india" in text:
-        return "🇮🇳"
-    elif "ghana" in text:
-        return "🇬🇭"
-    elif "brazil" in text:
-        return "🇧🇷"
+def get_country_info_by_range_or_text(range_str, text):
+    combined = f"{range_str} {text}".lower()
+    
+    if "992" in range_str:
+        return "🇲🇦", "MA"
+    elif "261" in range_str:
+        return "🇲🇬", "MG"
+    elif "380" in range_str:
+        return "🇺🇦", "UA"
+    elif "224" in range_str:
+        return "🇬🇳", "GN"
+    elif "228" in range_str:
+        return "🇹🇬", "TG"
+    elif "237" in range_str:
+        return "🇨🇲", "CM"
+    
+    if "malaysia" in combined:
+        return "🇲🇾", "MY"
+    elif "morocco" in combined:
+        return "🇲🇦", "MA"
+    elif "russian" in combined or "russia" in combined:
+        return "🇷🇺", "RU"
+    elif "sudan" in combined:
+        return "🇸🇩", "SD"
+    elif "tanzania" in combined:
+        return "🇹🇿", "TZ"
+    elif "zimbabwe" in combined:
+        return "🇿🇼", "ZW"
+    elif "algeria" in combined:
+        return "🇩🇿", "DZ"
+    elif "bolivia" in combined:
+        return "🇧🇴", "BO"
+    elif "madagascar" in combined:
+        return "🇲🇬", "MG"
+    elif "egypt" in combined:
+        return "🇪🇬", "EG"
+    elif "togo" in combined:
+        return "🇹🇬", "TG"
+    elif "india" in combined:
+        return "🇮🇳", "IN"
+    elif "ghana" in combined:
+        return "🇬🇭", "GH"
+    elif "brazil" in combined:
+        return "🇧🇷", "BR"
     else:
-        return "🌐"
+        return "🌐", "GLOBAL"
 
 async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
     try:
@@ -77,11 +87,11 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
                     country = item.get('country', 'Unknown')
                     service = item.get('service', 'Facebook')
                     
-                    flag = get_flag_by_text(country)
+                    flag, c_code = get_country_info_by_range_or_text("", country)
                     
                     alert_msg = (
                         f"⚔️ **{service} Received.**\n"
-                        f"❓ {flag} {country}\n"
+                        f"❓ {flag} {c_code}\n"
                         f"📞 `{num}`\n"
                         f"👥 Earned: +$0.0030\n"
                         f"💰 Balance: $0.0180\n\n"
@@ -112,7 +122,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
 
     if text == "📱 Get Number":
-        loading_msg = await update.message.reply_text("প্যানেল থেকে রেঞ্জ ও ক্যাটাগরি লোড করা হচ্ছে...")
+        loading_msg = await update.message.reply_text("প্যানেল থেকে রেঞ্জ ও শর্ট নেম লোড করা হচ্ছে...")
         
         try:
             response = requests.get(
@@ -127,19 +137,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 
                 keyboard = []
                 for item in active_ranges:
-                    rng = item.get('range')
+                    rng = str(item.get('range', ''))
                     srv = item.get('service', 'Facebook')
                     
-                    # সঠিক কান্ট্রি নাম খুঁজে বের করা (যদি এপিআইতে থাকে)
-                    country_name = "Global"
-                    for key in ['country', 'nation', 'region', 'location']:
-                        if item.get(key) and str(item.get(key)).strip() != "":
-                            country_name = item.get(key)
-                            break
+                    raw_info = f"{item.get('country', '')} {item.get('region', '')} {item.get('location', '')} {srv}"
+                    flag, c_code = get_country_info_by_range_or_text(rng, raw_info)
                     
-                    flag = get_flag_by_text(country_name)
-                    
-                    # PC Clone, New Fb ইত্যাদি ক্যাটাগরি ডিটেক্ট করা
                     mode_type = None
                     for key in ['mode', 'type', 'category', 'sub_service', 'tag', 'status', 'label']:
                         if item.get(key) and str(item.get(key)).strip() != "":
@@ -149,15 +152,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     if not mode_type:
                         mode_type = "New Fb" if "new" in str(item).lower() else "PC Clone"
 
-                    # বাটন টেক্সট: ফ্ল্যাগ + কান্ট্রি | রেঞ্জ | সার্ভিস (ক্যাটাগরি)
-                    btn_text = f"{flag} {country_name} | {rng} | {srv} ({mode_type})"
-                    keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"get3_{rng}_{srv}")])
+                    btn_text = f"{flag} {c_code} | {rng} | {srv} ({mode_type})"
+                    keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"get3_{rng}_{c_code}")])
                 
                 keyboard.append([InlineKeyboardButton("🔙 Close", callback_data="close_menu")])
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 
                 await loading_msg.edit_text(
-                    "⚡ **ACTIVE RANGES & CATEGORIES**\n\n_আপনার পছন্দের রেঞ্জটি সিলেক্ট করুন:_",
+                    "⚡ **ACTIVE RANGES & COUNTRY CODES**\n\n_আপনার পছন্দের রেঞ্জটি সিলেক্ট করুন:_",
                     parse_mode="Markdown",
                     reply_markup=reply_markup
                 )
@@ -184,7 +186,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         num = item.get('number')
                         otp_text = item.get('otp')
                         country = item.get('country')
-                        msg += f"📞 নম্বর: `{num}`\n🌍 দেশ: {country}\n💬 এসএমএস: __{otp_text}__\n-----------------------------------\n"
+                        flag, c_code = get_country_info_by_range_or_text("", country)
+                        msg += f"📞 নম্বর: `{num}`\n{flag} কোড: {c_code}\n💬 এসএমএস: __{otp_text}__\n-----------------------------------\n"
                     await loading_msg.edit_text(msg, parse_mode="Markdown")
                 else:
                     await loading_msg.edit_text("📭 কোনো নতুন OTP আসেনি।")
@@ -209,12 +212,12 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if data_code.startswith("get3_"):
         parts = data_code.split("_")
         range_value = parts[1]
-        service_name = parts[2] if len(parts) > 2 else "Number"
+        c_code = parts[2] if len(parts) > 2 else "GLOBAL"
         
         await query.edit_message_text(text="🔄 প্যানেল থেকে একসাথে ৩টি নম্বর অ্যাসাইন করা হচ্ছে, দয়া করে অপেক্ষা করুন...")
 
         assigned_numbers = []
-        detected_country = service_name
+        detected_c_code = c_code
         
         try:
             for _ in range(3):
@@ -236,19 +239,19 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     num_data = res.get('data', {})
                     assigned_numbers.append(num_data.get('full_number'))
                     if num_data.get('country'):
-                        detected_country = num_data.get('country')
+                        _, detected_c_code = get_country_info_by_range_or_text(range_value, num_data.get('country'))
 
             if len(assigned_numbers) > 0:
-                flag = get_flag_by_text(detected_country)
+                flag, final_c_code = get_country_info_by_range_or_text(range_value, detected_c_code)
                 
                 keyboard = [
-                    [InlineKeyboardButton("🔄 Next Number", callback_data=f"get3_{range_value}_{service_name}"), 
+                    [InlineKeyboardButton("🔄 Next Number", callback_data=f"get3_{range_value}_{c_code}"), 
                      InlineKeyboardButton("🌐 Country", callback_data="back_to_menu")]
                 ]
                 reply_markup = InlineKeyboardMarkup(keyboard)
 
                 result_msg = (
-                    f"{flag} **{detected_country} Number Assigned**\n\n"
+                    f"{flag} **[{final_c_code}] Number Assigned**\n\n"
                     f"💰 Per OTP : 0.30 TK\n\n"
                 )
                 for num in assigned_numbers:
