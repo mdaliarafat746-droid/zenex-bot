@@ -122,9 +122,17 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             print(f"P1 Error: {e}")
 
-        # Panel 2 Ranges (From liveaccess endpoint as per your screenshot)
+        # Panel 2 Ranges (Debugging Enabled)
         try:
-            r2 = requests.get(f'{PANEL_2_BASE}/liveaccess', headers={'mauthapi': PANEL_2_KEY}, timeout=5).json()
+            url_p2 = f'{PANEL_2_BASE}/liveaccess'
+            headers_p2 = {'mauthapi': PANEL_2_KEY}
+            print(f"Requesting P2: {url_p2} with Key: {PANEL_2_KEY}")
+            
+            r2_raw = requests.get(url_p2, headers=headers_p2, timeout=5)
+            print(f"P2 Status Code: {r2_raw.status_code}")
+            print(f"P2 Raw Response: {r2_raw.text}")
+            
+            r2 = r2_raw.json()
             if r2.get('meta', {}).get('code') == 200:
                 services_list = r2.get('data', {}).get('services', [])
                 for srv_item in services_list:
@@ -138,7 +146,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             'panel_type': 'panel2'
                         })
         except Exception as e:
-            print(f"P2 Error: {e}")
+            print(f"P2 Error Detailed: {e}")
         
         if len(all_ranges) > 0:
             keyboard = []
@@ -223,7 +231,6 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             assigned_numbers.append(full_num)
                             _, detected_c_code = get_country_info_by_range_or_text(str(full_num), num_data.get('country', ''))
                 else:
-                    # প্যানেল ২ এর জন্য ডকুমেন্টেশন অনুযায়ী rid এ শুধু ডিজিটগুলো পাঠাতে হবে (যেমন: 22501 বা 8801)
                     clean_rid = str(range_value).replace("XXX", "").replace("xx", "").replace("XX", "")
                     resp = requests.post(
                         f'{PANEL_2_BASE}/getnum',
