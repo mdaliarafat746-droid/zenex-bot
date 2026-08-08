@@ -107,7 +107,7 @@ def get_service_emoji(service_name):
     if "instagram" in srv:
         return "📸"
     elif "facebook" in srv or "fb" in srv:
-        return "🇫🇧"
+        return "FB"
     elif "telegram" in srv:
         return "✈️"
     elif "whatsapp" in srv:
@@ -138,12 +138,11 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
                     flag, c_code, _ = get_country_info_by_range_or_text(str(num), country)
                     srv_emoji = get_service_emoji(service)
                     
-                    # আপনার দেওয়া স্ক্রিনশটের মতো নির্দিষ্ট ফরম্যাট
                     msg_text = f"{flag} **{c_code}** {srv_emoji} `+{num}`"
                     
-                    # বাটনে লক আইকন এবং শুধু কোড
+                    # ক্যাবল ব্যাক ডাটা একদম নিরাপদ রাখা হয়েছে যাতে সহজে কপি কাজ করে
                     btn_label = f"🔐 {otp_text}"
-                    keyboard = [[InlineKeyboardButton(btn_label, callback_data=f"copy_{otp_text}")]]
+                    keyboard = [[InlineKeyboardButton(btn_label, callback_data=f"cp|{otp_text}")]]
                     reply_markup = InlineKeyboardMarkup(keyboard)
                     
                     await context.bot.send_message(
@@ -228,8 +227,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer()
     data_code = query.data
+
+    if data_code.startswith("cp|"):
+        val_to_copy = data_code.split("|", 1)[1]
+        # টেলিগ্রাম পপআপ নোটিফিকেশনে কোডটি সফলভাবে দেখাবে
+        await query.answer(text=f"Copied: {val_to_copy}", show_alert=True)
+        return
+
+    await query.answer()
 
     if data_code.startswith("get3_"):
         parts = data_code.split("_")
@@ -284,10 +290,6 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 
         except Exception as e:
             await query.edit_message_text("❌ সার্ভার থেকে রেসপন্স পেতে দেরি হচ্ছে। আবার চেষ্টা করুন।")
-
-    elif data_code.startswith("copy_"):
-        val_to_copy = data_code.split("_", 1)[1]
-        await query.answer(text=f"কপি করা হয়েছে: {val_to_copy}", show_alert=True)
 
     elif data_code == "back_to_menu":
         try:
