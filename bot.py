@@ -72,7 +72,7 @@ def get_country_info_by_range_or_text(range_str, country_field, raw_text=""):
 
 async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
     try:
-        res1 = requests.get('https://api.zenexnetwork.com/v1/numsuccess/info', headers={'mapikey': PANEL_1_KEY}, timeout=5).json()
+        res1 = requests.get('https://api.zenexnetwork.com/v1/numsuccess/info', headers={'mapikey': PANEL_1_KEY}, timeout=10).json()
         if res1.get('meta', {}).get('code') == 200:
             for item in res1.get('data', {}).get('otps', []):
                 nid = item.get('nid')
@@ -85,7 +85,7 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
         pass
 
     try:
-        res2 = requests.get(f'{PANEL_2_BASE}/success-otp', headers={'mauthapi': PANEL_2_KEY}, timeout=5).json()
+        res2 = requests.get(f'{PANEL_2_BASE}/success-otp', headers={'mauthapi': PANEL_2_KEY}, timeout=10).json()
         if res2.get('meta', {}).get('code') == 200:
             for item in res2.get('data', {}).get('otps', []):
                 otp_id = item.get('otp_id')
@@ -114,7 +114,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         # Panel 1 Ranges
         try:
-            r1 = requests.get('https://api.zenexnetwork.com/v1/active-ranges', headers={'mapikey': PANEL_1_KEY}, timeout=5).json()
+            r1 = requests.get('https://api.zenexnetwork.com/v1/active-ranges', headers={'mapikey': PANEL_1_KEY}, timeout=10).json()
             if r1.get('success') == True:
                 for r in r1.get('data', {}).get('active_ranges', []):
                     r['panel_type'] = 'panel1'
@@ -122,17 +122,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             print(f"P1 Error: {e}")
 
-        # Panel 2 Ranges (Debugging Enabled)
+        # Panel 2 Ranges (Timeout increased to 15s)
         try:
             url_p2 = f'{PANEL_2_BASE}/liveaccess'
             headers_p2 = {'mauthapi': PANEL_2_KEY}
-            print(f"Requesting P2: {url_p2} with Key: {PANEL_2_KEY}")
             
-            r2_raw = requests.get(url_p2, headers=headers_p2, timeout=5)
-            print(f"P2 Status Code: {r2_raw.status_code}")
-            print(f"P2 Raw Response: {r2_raw.text}")
-            
+            r2_raw = requests.get(url_p2, headers=headers_p2, timeout=15)
             r2 = r2_raw.json()
+            
             if r2.get('meta', {}).get('code') == 200:
                 services_list = r2.get('data', {}).get('services', [])
                 for srv_item in services_list:
@@ -174,14 +171,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             msg = "📥 **Live OTP Payloads:**\n\n"
             
-            res1 = requests.get('https://api.zenexnetwork.com/v1/numsuccess/info', headers={'mapikey': PANEL_1_KEY}, timeout=5).json()
+            res1 = requests.get('https://api.zenexnetwork.com/v1/numsuccess/info', headers={'mapikey': PANEL_1_KEY}, timeout=10).json()
             if res1.get('meta', {}).get('code') == 200:
                 for item in res1.get('data', {}).get('otps', [])[:3]:
                     num, otp_text, country = item.get('number'), item.get('otp'), item.get('country', '')
                     flag, c_code = get_country_info_by_range_or_text(str(num), country)
                     msg += f"[P1] 📞 `{num}` | {flag} {c_code}\n🔑 `{otp_text}`\n-------------------\n"
 
-            res2 = requests.get(f'{PANEL_2_BASE}/success-otp', headers={'mauthapi': PANEL_2_KEY}, timeout=5).json()
+            res2 = requests.get(f'{PANEL_2_BASE}/success-otp', headers={'mauthapi': PANEL_2_KEY}, timeout=10).json()
             if res2.get('meta', {}).get('code') == 200:
                 for item in res2.get('data', {}).get('otps', [])[:3]:
                     num, otp_msg = item.get('number'), item.get('message', '')
@@ -222,7 +219,7 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         'https://api.zenexnetwork.com/v1/getnum',
                         headers={'mapikey': PANEL_1_KEY, 'Content-Type': 'application/json'},
                         json={"range": range_value, "is_national": False, "remove_plus": False},
-                        timeout=5
+                        timeout=10
                     ).json()
                     if resp.get('meta', {}).get('code') == 200:
                         num_data = resp.get('data', {})
@@ -236,7 +233,7 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         f'{PANEL_2_BASE}/getnum',
                         headers={'mauthapi': PANEL_2_KEY, 'Content-Type': 'application/json'},
                         json={"rid": clean_rid},
-                        timeout=5
+                        timeout=10
                     ).json()
                     if resp.get('meta', {}).get('code') == 200:
                         num_data = resp.get('data', {})
