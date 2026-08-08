@@ -50,7 +50,7 @@ def get_country_info_by_range_or_text(range_str, country_field, raw_text=""):
     elif r_str.startswith("224") or "guinea" in combined:
         return "🇬🇳", "GN", "GUINEA"
     elif r_str.startswith("228") or "togo" in combined:
-        return "🇹🇬", "Togo", "TOGO"
+        return "🇹🇬", "TG", "TOGO"
     elif r_str.startswith("237") or "cameroon" in combined:
         return "🇨🇲", "CM", "CAMEROON"
     elif r_str.startswith("225") or "ivory" in combined:
@@ -108,6 +108,7 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
                 otp_text = item.get('otp')
                 service = item.get('service', 'Facebook')
                 
+                # নম্বর এবং ওটিপির কম্বিনেশন দিয়ে ইউনিক সিগনেচার (ডাবল ওটিপি ব্লক করার জন্য)
                 unique_signature = f"{num}_{otp_text}"
                 
                 if unique_signature not in notified_nids:
@@ -117,22 +118,10 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
                     country = item.get('country', '')
                     flag, c_code, _ = get_country_info_by_range_or_text(str(num), country)
                     
-                    msg_text = (
-                        f"⚔️ **{service} Received.**\n"
-                        f"❓ {flag} {country if country else c_code}\n"
-                        f"📞 `+{num}`\n"
-                        f"👥 Earned: `+$0.0030`\n"
-                        f"💰 Balance: `$0.0480`"
-                    )
-                    
-                    keyboard = [[InlineKeyboardButton(f"🔑 {otp_text}", callback_data=f"copy_{otp_text}")]]
-                    reply_markup = InlineKeyboardMarkup(keyboard)
-                    
                     await context.bot.send_message(
                         chat_id=ADMIN_CHAT_ID, 
-                        text=msg_text, 
-                        parse_mode="Markdown",
-                        reply_markup=reply_markup
+                        text=f"⚔️ **[P1] {service} Received.**\n❓ {flag} {c_code}\n📞 `{num}`\n🔑 `{otp_text}`", 
+                        parse_mode="Markdown"
                     )
             
             if updated:
@@ -238,9 +227,8 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 
                 keyboard = []
                 for num in assigned_numbers:
-                    clean_num = str(num).replace("+", "")
-                    btn_label = f"📱 +{clean_num}"
-                    keyboard.append([InlineKeyboardButton(btn_label, callback_data=f"copy_+{clean_num}")])
+                    btn_label = f"🇫 +{num}" if not str(num).startswith("+") else f"🇫 {num}"
+                    keyboard.append([InlineKeyboardButton(btn_label, callback_data=f"copy_{num}")])
                 
                 keyboard.append([InlineKeyboardButton("🔄 Change Number", callback_data=f"get3_{range_value}_{c_code}")])
                 keyboard.append([InlineKeyboardButton("🌐 Change Country", callback_data="back_to_menu")])
@@ -261,8 +249,8 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text("❌ সার্ভার থেকে রেসপন্স পেতে দেরি হচ্ছে। আবার চেষ্টা করুন।")
 
     elif data_code.startswith("copy_"):
-        val_to_copy = data_code.split("_", 1)[1]
-        await query.answer(text=f"নম্বর কপি করা হয়েছে: {val_to_copy}", show_alert=True)
+        num_to_copy = data_code.split("_")[1]
+        await query.answer(text=f"নম্বর কপি করা হয়েছে: +{num_to_copy}", show_alert=True)
 
     elif data_code == "back_to_menu":
         await query.message.delete()
