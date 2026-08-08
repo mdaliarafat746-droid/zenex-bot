@@ -14,8 +14,8 @@ BOT_TOKEN = "8998738234:AAGpV1zS4miYRC9AxNpSHvJNyWPgkfI9-U4"
 PANEL_1_KEY = "ZNX_5GJKQ6O8MT1F20MSW2G9K4V9"
 PANEL_2_KEY = "MYSM6BGQ7U3"
 
-# আপনার দেওয়া ওয়েবসাইট এবং স্ক্রিনশটের সঠিক বেস ইউআরএল
-PANEL_2_BASE = "https://mnitnetwork.com/MXS47FLFXOU/tnemn/@public/api"
+# স্ক্রিনশট অনুযায়ী প্যানেল ২ এর সঠিক বেস পাথ
+PANEL_2_BASE = "https://api.2oo9.cloud/MXS47FLFXOU/tnemn/@public/api"
 
 ADMIN_CHAT_ID = "6470943912"  
 notified_otps = set()
@@ -68,7 +68,6 @@ def get_country_info_by_range_or_text(range_str, country_field, raw_text=""):
         return "🌐", "GLOBAL"
 
 async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
-    # Panel 1 OTP Check
     try:
         res1 = requests.get('https://api.zenexnetwork.com/v1/numsuccess/info', headers={'mapikey': PANEL_1_KEY}, timeout=5).json()
         if res1.get('meta', {}).get('code') == 200:
@@ -82,7 +81,6 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
     except:
         pass
 
-    # Panel 2 OTP Check
     try:
         res2 = requests.get(f'{PANEL_2_BASE}/success-otp', headers={'mauthapi': PANEL_2_KEY}, timeout=5).json()
         if res2.get('meta', {}).get('code') == 200:
@@ -121,7 +119,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             print(f"P1 Error: {e}")
 
-        # Panel 2 Ranges (Using mnitnetwork.com API)
+        # Panel 2 Ranges (Using liveaccess endpoint)
         try:
             r2 = requests.get(f'{PANEL_2_BASE}/liveaccess', headers={'mauthapi': PANEL_2_KEY}, timeout=5).json()
             if r2.get('meta', {}).get('code') == 200:
@@ -222,10 +220,11 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             assigned_numbers.append(full_num)
                             _, detected_c_code = get_country_info_by_range_or_text(str(full_num), num_data.get('country', ''))
                 else:
+                    # স্ক্রিনশটের ডকুমেন্টেশন অনুযায়ী সঠিক বডি: {"rid": "26134"}
                     resp = requests.post(
                         f'{PANEL_2_BASE}/getnum',
                         headers={'mauthapi': PANEL_2_KEY, 'Content-Type': 'application/json'},
-                        json={"rid": range_value},
+                        json={"rid": str(range_value).replace("XXX", "")},
                         timeout=5
                     ).json()
                     if resp.get('meta', {}).get('code') == 200:
@@ -233,7 +232,7 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         full_num = num_data.get('full_number') or num_data.get('number')
                         if full_num:
                             assigned_numbers.append(full_num)
-                            _, detected_c_code = get_country_info_by_range_or_text(str(full_num), num_data.get('country', ''))
+                            _, detected_c_code = get_country_info_by_range_or_text(str(full_num), "")
 
             if len(assigned_numbers) > 0:
                 flag, final_c_code = get_country_info_by_range_or_text(range_value, detected_c_code)
