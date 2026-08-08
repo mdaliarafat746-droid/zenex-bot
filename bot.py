@@ -14,15 +14,16 @@ BOT_TOKEN = "8998738234:AAGpV1zS4miYRC9AxNpSHvJNyWPgkfI9-U4"
 API_KEY = "ZNX_5GJKQ6O8MT1F20MSW2G9K4V9"
 
 ADMIN_CHAT_ID = "6470943912"  
-ADMIN_PROFILE = "https://t.me/Mdarafatali26"
 
-# ইতিমধ্যে যে ওটিপিগুলো পাঠানো হয়েছে তা ট্র্যাক করার জন্য গ্লোবাল সেট
+# ইতিমধ্যে পাঠানো ওটিপিগুলোর আইডি ট্র্যাক করার জন্য সেট
 notified_otps = set()
 
 # দেশের নাম বা সার্ভিস অনুযায়ী সঠিক ফ্লাগ ইমোজি নির্ধারণ করার ফাংশন
 def get_flag_by_text(text):
     text = text.lower()
-    if "egypt" in text:
+    if "madagascar" in text:
+        return "🇲🇬"
+    elif "egypt" in text:
         return "🇪🇬"
     elif "togo" in text:
         return "🇹🇬"
@@ -39,7 +40,7 @@ def get_flag_by_text(text):
     else:
         return "🌐"
 
-# ব্যাকগ্রাউন্ডে স্বয়ংক্রিয়ভাবে ওটিপি চেক করার ফাংশন (ডুপ্লিকেট রোধ সহ)
+# ব্যাকগ্রাউন্ডে স্বয়ংক্রিয়ভাবে ওটিপি চেক করার ফাংশন (ডাবল মেসেজ প্রোটেকশনসহ)
 async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
     try:
         response = requests.get(
@@ -54,27 +55,29 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
             
             for item in otps_list:
                 nid = item.get('nid')
-                # চেক করা হচ্ছে nid টি ইতিপূর্বে নোটিফাই করা হয়েছে কি না
+                # যদি এই ওটিপিটি আগে পাঠানো না হয়ে থাকে
                 if nid and nid not in notified_otps:
                     notified_otps.add(nid)
                     
-                    # মেমোরি বেশি বড় হওয়া রোধ করতে সেটের সাইজ লিমিট রাখা (ঐচ্ছিক নিরাপত্তা)
-                    if len(notified_otps) > 500:
+                    # মেমোরি খালি রাখার জন্য সেটের সাইজ লিমিট
+                    if len(notified_otps) > 1000:
                         notified_otps.pop()
                     
                     num = item.get('number')
                     otp_text = item.get('otp')
                     country = item.get('country', 'Unknown')
-                    op = item.get('operator', '')
+                    service = item.get('service', 'Facebook') # সার্ভিস নাম না থাকলে ডিফল্ট Facebook
                     
                     flag = get_flag_by_text(country)
                     
+                    # স্ক্রিনশটের মতো আকর্ষণীয় ফরম্যাট
                     alert_msg = (
-                        f"🚨 **নতুন OTP চলে এসেছে!** 🚨\n\n"
-                        f"{flag} নম্বর: `{num}`\n"
-                        f"📡 অপারেটর: {op}\n"
-                        f"💬 কোড/এসএমএস:\n`{otp_text}`\n\n"
-                        f"👤 প্রোফাইল: [Arafat Ali]({ADMIN_PROFILE})"
+                        f"⚔️ **{service} Received.**\n"
+                        f"❓ {flag} {country}\n"
+                        f"📞 `{num}`\n"
+                        f"👥 Earned: +$0.0030\n"
+                        f"💰 Balance: $0.0180\n\n"
+                        f"🔑 `{otp_text}`"
                     )
                     
                     await context.bot.send_message(
@@ -176,10 +179,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif text == "💰 Balance":
         await update.message.reply_text("Zenex API কানেকশন সক্রিয় রয়েছে।")
     elif text == "👤 Profile":
-        await update.message.reply_text(
-            f"আপনার টেলিগ্রাম আইডি: {update.effective_user.id}\n"
-            f"যোগাযোগ: {ADMIN_PROFILE}"
-        )
+        await update.message.reply_text(f"আপনার টেলিগ্রাম আইডি: {update.effective_user.id}")
     else:
         await update.message.reply_text(f"আপনি সিলেক্ট করেছেন: {text}")
 
