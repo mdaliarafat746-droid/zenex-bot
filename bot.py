@@ -29,7 +29,7 @@ def load_nids():
 
 def save_nids(nids_set):
     try:
-        nids_list = list(nids_set)[-5000:]
+        nids_list = list(nids_set)[-10000:]
         with open(NID_FILE, "w", encoding="utf-8") as f:
             json.dump(nids_list, f)
     except Exception as e:
@@ -126,10 +126,10 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
                 num = str(item.get('number')).strip()
                 raw_otp = str(item.get('otp', '')).strip()
                 otp_text = extract_pure_code(raw_otp)
-                service = item.get('service', 'Facebook')
+                service = str(item.get('service', 'Facebook')).strip()
                 
-                # ইউনিক সিগনেচার তৈরি যা দিয়ে ডাবল মেসেজ ফিল্টার হবে
-                unique_signature = f"{num}_{otp_text}"
+                # নিখুঁত ইউনিক আইডি (নম্বর + ওটিপি + সার্ভিস) যাতে ডাবল এন্ট্রি ফিল্টার হয়
+                unique_signature = f"{num}_{otp_text}_{service}"
                 
                 if unique_signature not in notified_nids:
                     notified_nids.add(unique_signature)
