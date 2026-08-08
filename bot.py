@@ -96,19 +96,16 @@ def get_country_info_by_range_or_text(range_str, country_field, raw_text=""):
 
 def format_service_name(item):
     srv = str(item.get('service', 'FACEBOOK')).upper()
-    rng = str(item.get('range', ''))
-    
-    # প্যানেলের ডেটা বা রেঞ্জ অনুযায়ী সঠিকভাবে PC Clone বা New Fb সেট করা হলো
     full_str = str(item).lower()
     
     if "instagram" in full_str or srv == "INSTAGRAM":
-        return "INSTAGRAM"
+        return "⚡ INSTAGRAM"
     
-    # আপনার স্ক্রিনশট অনুযায়ী 992778 রেঞ্জটি PC Clone
-    if rng.startswith("992778") or "clone" in full_str or "pc" in full_str:
-        return f"{srv} | 🔴 PC Clone"
+    # প্যানেলের সাথে মিল রেখে সুন্দর ডিজাইন ও শর্ট ফরম্যাট
+    if "clone" in full_str or "pc" in full_str:
+        return "💻 PC Clone"
     else:
-        return f"{srv} | 🟢 New Fb"
+        return "✨ New FB"
 
 async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
     try:
@@ -188,12 +185,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 flag, c_code, _ = get_country_info_by_range_or_text(rng, api_country, str(item))
                 formatted_srv = format_service_name(item)
                 
-                btn_text = f"{flag} [{c_code}] {rng} | {formatted_srv}"
+                # বাটনগুলোকে আরও ক্লিন ও সুন্দর লুক দেওয়া হলো
+                btn_text = f"{flag} {rng} | {formatted_srv}"
                 keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"get3_{rng}_{c_code}")])
             
-            keyboard.append([InlineKeyboardButton("🔙 Close", callback_data="close_menu")])
+            keyboard.append([InlineKeyboardButton("❌ Close Menu", callback_data="close_menu")])
             reply_markup = InlineKeyboardMarkup(keyboard)
-            await loading_msg.edit_text(f"⚡ **ACTIVE RANGES (Total: {len(all_ranges)})**\n\n_আপনার পছন্দের রেঞ্জটি সিলেক্ট করুন:_", parse_mode="Markdown", reply_markup=reply_markup)
+            
+            header_text = f"⚡ **ACTIVE RANGES**\n📂 Total Available: `{len(all_ranges)}`\n\n_নিচের তালিকা থেকে আপনার পছন্দের রেঞ্জটি সিলেক্ট করুন:_"
+            await loading_msg.edit_text(header_text, parse_mode="Markdown", reply_markup=reply_markup)
         else:
             await loading_msg.edit_text("❌ প্যানেল থেকে কোনো রেঞ্জ পাওয়া যায়নি।")
             
@@ -262,8 +262,8 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 reply_markup = InlineKeyboardMarkup(keyboard)
 
                 result_msg = (
-                    f"❓ **Country:** {flag} **{full_country_name}** ({final_c_code})\n"
-                    f"🎟️ **Waiting for OTP**\n\n"
+                    f"🌍 **Country:** {flag} **{full_country_name}** ({final_c_code})\n"
+                    f"🎟️ **Status:** Waiting for OTP...\n\n"
                     f"{numbers_block}\n"
                     f"_👆 উপরের নম্বরের ওপর ট্যাপ করলেই খুব সহজে কপি হয়ে যাবে!_"
                 )
@@ -275,10 +275,7 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             await query.edit_message_text("❌ সার্ভার থেকে রেসপন্স পেতে দেরি হচ্ছে। আবার চেষ্টা করুন।")
 
-    elif data_data_code := data_code.startswith("copy_"): # safe block
-        pass
-
-    if data_code.startswith("copy_"):
+    elif data_code.startswith("copy_"):
         val_to_copy = data_code.split("_", 1)[1]
         await query.answer(text=f"কপি করা হয়েছে: {val_to_copy}", show_alert=True)
 
