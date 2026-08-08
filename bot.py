@@ -14,7 +14,6 @@ BOT_TOKEN = "8998738234:AAGpV1zS4miYRC9AxNpSHvJNyWPgkfI9-U4"
 PANEL_1_KEY = "ZNX_5GJKQ6O8MT1F20MSW2G9K4V9"
 PANEL_2_KEY = "MYSM6BGQ7U3"
 
-# প্যানেল ২ এর সঠিক বেস পাথ
 PANEL_2_BASE = "https://api.2oo9.cloud/MXS47FLFXOU/tnemn/@public/api"
 
 ADMIN_CHAT_ID = "6470943912"  
@@ -123,10 +122,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             print(f"P1 Error: {e}")
 
-        # Panel 2 Ranges (Fixed & Optimized)
+        # Panel 2 Ranges (From liveaccess endpoint as per your screenshot)
         try:
-            url_p2 = f'{PANEL_2_BASE}/liveaccess'
-            r2 = requests.get(url_p2, headers={'mauthapi': PANEL_2_KEY}, timeout=5).json()
+            r2 = requests.get(f'{PANEL_2_BASE}/liveaccess', headers={'mauthapi': PANEL_2_KEY}, timeout=5).json()
             if r2.get('meta', {}).get('code') == 200:
                 services_list = r2.get('data', {}).get('services', [])
                 for srv_item in services_list:
@@ -225,6 +223,7 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             assigned_numbers.append(full_num)
                             _, detected_c_code = get_country_info_by_range_or_text(str(full_num), num_data.get('country', ''))
                 else:
+                    # প্যানেল ২ এর জন্য ডকুমেন্টেশন অনুযায়ী rid এ শুধু ডিজিটগুলো পাঠাতে হবে (যেমন: 22501 বা 8801)
                     clean_rid = str(range_value).replace("XXX", "").replace("xx", "").replace("XX", "")
                     resp = requests.post(
                         f'{PANEL_2_BASE}/getnum',
@@ -237,7 +236,7 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         full_num = num_data.get('full_number') or num_data.get('number')
                         if full_num:
                             assigned_numbers.append(full_num)
-                            _, detected_c_code = get_country_info_by_range_or_text(str(full_num), "")
+                            _, detected_c_code = get_country_info_by_range_or_text(str(full_num), num_data.get('country', ''))
 
             if len(assigned_numbers) > 0:
                 flag, final_c_code = get_country_info_by_range_or_text(range_value, detected_c_code)
