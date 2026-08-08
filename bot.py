@@ -91,39 +91,48 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
 
     if text == "📱 Get Number":
-        loading_msg = await update.message.reply_text("⚡ রেঞ্জ লোড করা হচ্ছে...")
+        loading_msg = await update.message.reply_text("⚡ সকল প্যানেল থেকে রেঞ্জ লোড করা হচ্ছে...")
         all_ranges = []
         
+        # প্যানেল ১ থেকে ফেচ করা
         try:
-            r1 = requests.get('https://api.zenexnetwork.com/v1/active-ranges', headers={'mapikey': PANEL_1_KEY}, timeout=4).json()
+            r1 = requests.get('https://api.zenexnetwork.com/v1/active-ranges', headers={'mapikey': PANEL_1_KEY}, timeout=5).json()
             if r1.get('success') == True:
                 for r in r1.get('data', {}).get('active_ranges', []):
                     r['panel_type'] = 'panel1'
                     all_ranges.append(r)
-        except:
-            pass
+        except Exception as e:
+            print(f"Panel 1 Error: {e}")
 
+        # প্যানেল ২ থেকে ফেچ করা (হেডার এবং এন্ডপ পয়েন্ট আপডেট করা হয়েছে)
         try:
-            r2 = requests.get(f'{PANEL_2_BASE}/active-ranges', headers={'mauthapi': PANEL_2_KEY}, timeout=4).json()
-            ranges_data = r2.get('data', {}).get('active_ranges', []) or r2.get('data', [])
+            r2 = requests.get(f'{PANEL_2_BASE}/active-ranges', headers={'mauthapi': PANEL_2_KEY}, timeout=5).json()
+            # বিভিন্ন ফরম্যাট হ্যান্ডেল করার জন্য
+            ranges_data = []
+            if isinstance(r2, list):
+                ranges_data = r2
+            elif isinstance(r2, dict):
+                ranges_data = r2.get('data', {}).get('active_ranges', []) or r2.get('active_ranges', []) or r2.get('data', [])
+                if not ranges_data and 'ranges' in r2:
+                    ranges_data = r2.get('ranges', [])
+            
             for r in ranges_data:
-                r['panel_type'] = 'panel2'
-                all_ranges.append(r)
-        except:
-            pass
+                if isinstance(r, dict):
+                    r['panel_type'] = 'panel2'
+                    all_ranges.append(r)
+        except Exception as e:
+            print(f"Panel 2 Error: {e}")
         
         if len(all_ranges) > 0:
             keyboard = []
-            for item in all_ranges[:20]:
-                rng = str(item.get('range', '') or item.get('rid', ''))
+            for item in all_ranges[:25]:
+                rng = str(item.get('range', '') or item.get('rid', '') or item.get('number_range', ''))
                 srv = item.get('service', 'Facebook')
                 api_country = item.get('country', '')
-                p_type = item.get('panel_type')
+                p_type = item.get('panel_type', 'panel1')
                 
                 flag, c_code = get_country_info_by_range_or_text(rng, api_country, srv)
-                mode_type = item.get('mode', '') or item.get('category', '') or "Clone"
-
-                # এখানে প্যানেল ট্যাগ [P1] অথবা [P2] যুক্ত করা হয়েছে
+                
                 panel_tag = "P1" if p_type == 'panel1' else "P2"
                 btn_text = f"[{panel_tag}] {flag} {c_code} | {rng} | {srv}"
                 
@@ -131,9 +140,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
             keyboard.append([InlineKeyboardButton("🔙 Close", callback_data="close_menu")])
             reply_markup = InlineKeyboardMarkup(keyboard)
-            await loading_msg.edit_text("⚡ **ACTIVE RANGES (MULTI-PANEL)**\n\n_আপনার পছন্দের রেঞ্জটি সিলেক্ট করুন:_", parse_mode="Markdown", reply_markup=reply_markup)
+            await loading_msg.edit_text(f"⚡ **ACTIVE RANGES (Total: {len(all_ranges)})**\n\n_আপনার পছন্দের রেঞ্জটি সিলেক্ট করুন:_", parse_mode="Markdown", reply_markup=reply_markup)
         else:
-            await loading_msg.edit_text("❌ রেঞ্জ লোড করতে ব্যর্থ হয়েছে। সার্ভার চেক করুন।")
+            await loading_msg.edit_text("❌ কোনো প্যানেল থেকেই রেঞ্জ পাওয়া যায়নি। এপিআই কি (API Key) চেক করুন।")
             
     elif text == "📩 Check Live OTP":
         loading_msg = await update.message.reply_text("ওটিপি চেক করা হচ্ছে...")
@@ -193,9 +202,9 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         timeout=5
                     ).json()
                     
-                if resp.get('meta', {}).get('code') == 200:
+                if resp.get('meta', {}).get('code') == 200 or resp.get('status') == True:
                     num_data = resp.get('data', {})
-                    full_num = num_data.get('full_number')
+                    full_num = num_data.get('full_number') or num_data.get('number')
                     if full_num:
                         assigned_numbers.append(full_num)
                         _, detected_c_code = get_country_info_by_range_or_text(str(full_num), num_data.get('country', ''))
