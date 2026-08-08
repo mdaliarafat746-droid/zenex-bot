@@ -5,7 +5,6 @@ from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, Callb
 import sys
 import io
 
-# উইন্ডোজ টার্মিনালে ইউনিকোড এনকোডিং ঠিক রাখার জন্য
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -15,10 +14,8 @@ API_KEY = "ZNX_5GJKQ6O8MT1F20MSW2G9K4V9"
 
 ADMIN_CHAT_ID = "6470943912"  
 
-# ইতিমধ্যে পাঠানো ওটিপিগুলোর আইডি ট্র্যাক করার জন্য সেট
 notified_otps = set()
 
-# দেশের নাম বা সার্ভিস অনুযায়ী সঠিক ফ্লাগ ইমোজি নির্ধারণ করার ফাংশন
 def get_flag_by_text(text):
     text = text.lower()
     if "madagascar" in text:
@@ -40,7 +37,6 @@ def get_flag_by_text(text):
     else:
         return "🌐"
 
-# ব্যাকগ্রাউন্ডে স্বয়ংক্রিয়ভাবে ওটিপি চেক করার ফাংশন
 async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
     try:
         response = requests.get(
@@ -57,7 +53,6 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
                 nid = item.get('nid')
                 if nid and nid not in notified_otps:
                     notified_otps.add(nid)
-                    
                     if len(notified_otps) > 1000:
                         notified_otps.pop()
                     
@@ -85,7 +80,6 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         pass
 
-# /start কমান্ড এবং মূল মেনু
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [KeyboardButton("📱 Get Number"), KeyboardButton("📩 Check Live OTP")],
@@ -94,11 +88,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
     
     await update.message.reply_text(
-        "স্বাগতম! Zenex অটো-ওটিপি প্যানেলে আপনাকে স্বাগতম। নম্বর নিলে ওটিপি অটো চলে আসবে:",
+        "স্বাগতম! Zenex অটো-ওটিপি প্যানেলে আপনাকে স্বাগতম:",
         reply_markup=reply_markup
     )
 
-# মেসেজ হ্যান্ডলার
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
 
@@ -113,6 +106,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             res_data = response.json()
             
+            # টার্মিনালে প্যানেলের পুরো ডেটা প্রিন্ট করে দেখাবে কোন ফিল্ডে আসল নাম আছে
+            print("API ACTIVE RANGES RESPONSE:", res_data)
+            
             if res_data.get('success') == True:
                 active_ranges = res_data.get('data', {}).get('active_ranges', [])
                 
@@ -122,18 +118,24 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     srv = item.get('service', 'Facebook')
                     hits = item.get('hits', '0')
                     
-                    # প্যানেল থেকে আসল সাব-টাইপ বা ক্যাটাগরি ফেচ করা
-                    mode_type = item.get('type') or item.get('mode') or item.get('category') or item.get('sub_service') or 'PC Clone'
+                    # প্যানেল রেসপন্সের যেকোনো সম্ভাব্য ফিল্ড থেকে ডেটা খোঁজা
+                    mode_type = None
+                    for key in ['mode', 'type', 'category', 'sub_service', 'tag', 'status', 'label']:
+                        if item.get(key):
+                            mode_type = item.get(key)
+                            break
                     
+                    if not mode_type:
+                        mode_type = "New Fb" if "new" in str(item).lower() else "PC Clone"
+
                     btn_text = f"{rng} | {srv} ({mode_type}) - [{hits} Hits]"
-                    
                     keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"get3_{rng}_{srv}")])
                 
                 keyboard.append([InlineKeyboardButton("🔙 Close", callback_data="close_menu")])
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 
                 await loading_msg.edit_text(
-                    "⚡ **TOP HITS RANGES**\n\n_কোনটি PC Clone আর কোনটি New Fb তা নিচে দেখতে পাচ্ছেন:_",
+                    "⚡ **TOP HITS RANGES**\n\n_সঠিক ক্যাটাগরি সহ রেঞ্জগুলো নিচে দেওয়া হলো:_",
                     parse_mode="Markdown",
                     reply_markup=reply_markup
                 )
@@ -176,7 +178,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text(f"আপনি সিলেক্ট করেছেন: {text}")
 
-# ইনলাইন বাটন ক্লিক হ্যান্ডলার
 async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
