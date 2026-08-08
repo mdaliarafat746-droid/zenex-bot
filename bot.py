@@ -40,7 +40,7 @@ def get_flag_by_text(text):
     else:
         return "🌐"
 
-# ব্যাকগ্রাউন্ডে স্বয়ংক্রিয়ভাবে ওটিপি চেক করার ফাংশন (ডাবল মেসেজ প্রোটেকশনসহ)
+# ব্যাকগ্রাউন্ডে স্বয়ংক্রিয়ভাবে ওটিপি চেক করার ফাংশন
 async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
     try:
         response = requests.get(
@@ -119,16 +119,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 keyboard = []
                 for item in active_ranges:
                     rng = item.get('range')
-                    srv = item.get('service', 'FACEBOOK')
-                    hits = item.get('hits', '0') # যদি এপিআই থেকে হিট সংখ্যা থাকে
+                    srv = item.get('service', 'Facebook')
+                    hits = item.get('hits', '0')
                     
-                    # ক্যাটাগরি নির্ধারণ (আপনার লজিক বা এপিআই ডেটা অনুযায়ী)
-                    # প্যানেলে যদি নির্দিষ্ট কোনো ফিল্ড থাকে সেটি এখানে ব্যবহার করতে পারেন, যেমন item.get('type')
-                    mode_type = item.get('type', 'PC Clone') 
+                    # প্যানেল থেকে আসল সাব-টাইপ বা ক্যাটাগরি প্রপার্টি ফেচ করা (যেমন: type, mode, category ইত্যাদি)
+                    # আপনার প্যানেলের রেসপন্সে যে ফিল্ডটি দিয়ে আসল নাম আসে সেটি এখানে দেওয়া হলো:
+                    mode_type = item.get('type') or item.get('mode') or item.get('category') or item.get('sub_service') or 'PC Clone'
                     
-                    flag = get_flag_by_text(srv)
-                    
-                    # স্ক্রিনশটের মতো সাজানো বাটন টেক্সট
+                    # যদি প্যানেলে সরাসরি সার্ভিস নামেই আসল ডেটা থাকে
                     btn_text = f"{rng} | {srv} ({mode_type}) - [{hits} Hits]"
                     
                     keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"get3_{rng}_{srv}")])
@@ -137,7 +135,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 
                 await loading_msg.edit_text(
-                    "⚡ **TOP HITS RANGES**\n\n_কোন রেঞ্জটি PC Clone আর কোনটি New Fb তা দেখতে নিচে ক্লিক করুন:_",
+                    "⚡ **TOP HITS RANGES**\n\n_কোনটি আসল PC Clone আর কোনটি New Fb বা Instagram তা নিচে দেখতে পাচ্ছেন:_",
                     parse_mode="Markdown",
                     reply_markup=reply_markup
                 )
@@ -145,7 +143,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await loading_msg.edit_text("❌ প্যানেল থেকে রেঞ্জ লোড করতে ব্যর্থ হয়েছে।")
                 
         except Exception as e:
-            await loading_msg.edit_text(f"কানেকশন এরর: {e}")
+            await loading_msg.edit_text(f"কানেকشن এরর: {e}")
             
     elif text == "📩 Check Live OTP":
         loading_msg = await update.message.reply_text("প্যানেল থেকে ইনকামিং ওটিপি চেক করা হচ্ছে...")
@@ -162,7 +160,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     msg = "📥 **Live OTP Payloads:**\n\n"
                     for item in otps_list:
                         num = item.get('number')
-                        otp_text = item.get('otp')
+                        otp_text = item.get('otp')`
                         country = item.get('country')
                         msg += f"📞 নম্বর: `{num}`\n🌍 দেশ: {country}\n💬 এসএমএস: __{otp_text}__\n-----------------------------------\n"
                     await loading_msg.edit_text(msg, parse_mode="Markdown")
