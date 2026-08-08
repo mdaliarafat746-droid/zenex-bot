@@ -66,6 +66,24 @@ def get_country_info_by_range_or_text(range_str, country_field, raw_text=""):
     else:
         return "🌐", "GLOBAL"
 
+def format_service_name(srv_name, range_str):
+    s_lower = str(srv_name).lower()
+    r_str = str(range_str)
+    
+    # আপনার চাহিদা অনুযায়ী এখানে নাম ম্যাপিং করা হয়েছে
+    if "face" in s_lower or "fb" in s_lower:
+        # আপনি চাইলে রেঞ্জ অনুযায়ী বা নির্দিষ্ট শর্তে Clone বা New Fb সেট করতে পারেন
+        if "clone" in s_lower:
+            return "Facebook (Fb Clone)"
+        elif "new" in s_lower or r_str.endswith("4XXX") or r_str.endswith("4xx"):
+            return "Facebook (New Fb)"
+        else:
+            return "Facebook (Fb Clone)"
+    elif "insta" in s_lower:
+        return "Instagram (General)"
+    else:
+        return f"{srv_name} (General)"
+
 async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
     try:
         res1 = requests.get('https://api.zenexnetwork.com/v1/numsuccess/info', headers={'mapikey': PANEL_1_KEY}, timeout=10).json()
@@ -112,7 +130,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 api_country = item.get('country', '')
                 
                 flag, c_code = get_country_info_by_range_or_text(rng, api_country, srv)
-                btn_text = f"[P1] {flag} {c_code} | {rng} | {srv}"
+                formatted_srv = format_service_name(srv, rng)
+                
+                btn_text = f"{flag} {rng} | {formatted_srv}"
                 
                 keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"get3_{rng}_{c_code}")])
             
