@@ -13,7 +13,9 @@ BOT_TOKEN = "8998738234:AAGpV1zS4miYRC9AxNpSHvJNyWPgkfI9-U4"
 PANEL_1_KEY = "ZNX_5GJKQ6O8MT1F20MSW2G9K4V9"
 
 ADMIN_CHAT_ID = "6470943912"  
-notified_otps = set()
+
+# প্যানেলের ক্রিপ্টোগ্রাফিক নিড (nid) ট্র্যাক করার জন্য সেট
+notified_nids = set()
 
 def get_country_info_by_range_or_text(range_str, country_field, raw_text=""):
     r_str = str(range_str)
@@ -88,17 +90,27 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
         if res1.get('meta', {}).get('code') == 200:
             otps_list = res1.get('data', {}).get('otps', [])
             for item in otps_list:
-                # ইউনিক আইডি বা কম্বিনেশন তৈরি করা যাতে ডুপ্লিকেট না আসে
-                nid = item.get('nid') or f"{item.get('number')}_{item.get('otp')}"
-                if nid and nid not in notified_otps:
-                    notified_otps.add(nid)
-                    # মেমোরি সুরক্ষার জন্য সেট সাই즈 সীমিত রাখা
-                    if len(notified_otps) > 500:
-                        notified_otps.pop()
+                # প্যানেলের নিজস্ব Cryptographic message identifier (nid) দিয়ে চেক করা হচ্ছে
+                nid = item.get('nid')
+                
+                if nid and nid not in notified_nids:
+                    notified_nids.add(nid)
+                    
+                    # মেমোরি অপ্টিমাইজ করার জন্য সাইজ লিমিট রাখা হলো
+                    if len(notified_nids) > 1000:
+                        notified_nids.pop()
                         
-                    num, otp_text, country, service = item.get('number'), item.get('otp'), item.get('country', ''), item.get('service', 'Facebook')
+                    num = item.get('number')
+                    otp_text = item.get('otp')
+                    country = item.get('country', '')
+                    service = item.get('service', 'Facebook')
+                    
                     flag, c_code = get_country_info_by_range_or_text(str(num), country)
-                    await context.bot.send_message(chat_id=ADMIN_CHAT_ID, text=f"⚔️ **[P1] {service} Received.**\n❓ {flag} {c_code}\n📞 `{num}`\n🔑 `{otp_text}`", parse_mode="Markdown")
+                    await context.bot.send_message(
+                        chat_id=ADMIN_CHAT_ID, 
+                        text=f"⚔️ **[P1] {service} Received.**\n❓ {flag} {c_code}\n📞 `{num}`\n🔑 `{otp_text}`", 
+                        parse_mode="Markdown"
+                    )
     except Exception as e:
         print(f"OTP Checker Error: {e}")
 
@@ -137,7 +149,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 formatted_srv = format_service_name(srv, rng)
                 
                 btn_text = f"{flag} {rng} | {formatted_srv}"
-                
                 keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"get3_{rng}_{c_code}")])
             
             keyboard.append([InlineKeyboardButton("🔙 Close", callback_data="close_menu")])
