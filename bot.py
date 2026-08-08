@@ -2,6 +2,7 @@ import logging
 import requests
 import json
 import os
+import time
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, CallbackQueryHandler, MessageHandler, filters
 import sys
@@ -22,20 +23,26 @@ def load_nids():
     if os.path.exists(NID_FILE):
         try:
             with open(NID_FILE, "r", encoding="utf-8") as f:
-                return set(json.load(f))
+                data = json.load(f)
+                if isinstance(data, list):
+                    # যদি পুরোনো ফরম্যাট লিস্ট হয়, তবে সেগুলোকে বর্তমান সময় দিয়ে ডিকশনারিতে রূপান্তর করি
+                    current_time = time.time()
+                    return {item: current_time for item in data}
+                elif isinstance(data, dict):
+                    return data
         except:
-            return set()
-    return set()
+            return {}
+    return {}
 
-def save_nids(nids_set):
+def save_nids(nids_dict):
     try:
-        nids_list = list(nids_set)[-10000:]
+        # বেশি বড় হয়ে গেলে পুরোনো ডেটা ক্লিন করে ফেলব
         with open(NID_FILE, "w", encoding="utf-8") as f:
-            json.dump(nids_list, f)
+            json.dump(nids_dict, f)
     except Exception as e:
         print(f"NID Save Error: {e}")
 
-notified_nids = load_nids()
+sent_otps_cache = load_nids()
 
 def extract_pure_code(full_text):
     text = str(full_text).strip()
@@ -121,37 +128,49 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
         if res1.get('meta', {}).get('code') == 200:
             otps_list = res1.get('data', {}).get('otps', [])
             
+            current_time = time.time()
             updated = False
+            
+            # পুরোনো বা ৩ ঘণ্টা আগের মেমোরি পরিষ্কার করে ফেলা যাক
+            expired_keys = [k for k, t in sent_otps_cache.items() if current_time - t > 10800]
+            for k in expired_keys:
+                del sent_otps_cache[k]
+                updated = True
+
             for item in otps_list:
                 num = str(item.get('number')).strip()
                 raw_otp = str(item.get('otp', '')).strip()
                 otp_text = extract_pure_code(raw_otp)
                 service = str(item.get('service', 'Facebook')).strip()
                 
-                # নিখুঁত ইউনিক আইডি (নম্বর + ওটিপি + সার্ভিস) যাতে ডাবল এন্ট্রি ফিল্টার হয়
-                unique_signature = f"{num}_{otp_text}_{service}"
+                # সিগনেচার তৈরি (নম্বর + ওটিপি)
+                unique_signature = f"{num}_{otp_text}"
                 
-                if unique_signature not in notified_nids:
-                    notified_nids.add(unique_signature)
-                    updated = True
-                        
-                    country = item.get('country', '')
-                    flag, c_code, _ = get_country_info_by_range_or_text(num, country)
-                    srv_emoji = get_service_emoji(service)
+                # যদি এই ওটিপি ইতিমধ্যে পাঠানো হয়ে থাকে এবং তার বয়স যদি ৬০০ সেকেন্ড (১০ মিনিট) এর কম হয়, তবে স্কিপ করো
+                if unique_signature in sent_otps_cache:
+                    continue
+                
+                # নতুন ওটিপি হলে পাঠাবো
+                sent_otps_cache[unique_signature] = current_time
+                updated = True
                     
-                    msg_text = (
-                        f"{flag} **{c_code}** {srv_emoji} `+{num}`\n"
-                        f"🔐 `{otp_text}`\n"
-                    )
-                    
-                    await context.bot.send_message(
-                        chat_id=ADMIN_CHAT_ID, 
-                        text=msg_text, 
-                        parse_mode="Markdown"
-                    )
+                country = item.get('country', '')
+                flag, c_code, _ = get_country_info_by_range_or_text(num, country)
+                srv_emoji = get_service_emoji(service)
+                
+                msg_text = (
+                    f"{flag} **{c_code}** {srv_emoji} `+{num}`\n"
+                    f"🔐 `{otp_text}`\n"
+                )
+                
+                await context.bot.send_message(
+                    chat_id=ADMIN_CHAT_ID, 
+                    text=msg_text, 
+                    parse_mode="Markdown"
+                )
             
             if updated:
-                save_nids(notified_nids)
+                save_nids(sent_otps_cache)
                 
     except Exception as e:
         print(f"OTP Checker Error: {e}")
@@ -325,7 +344,7 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
     app.add_handler(CallbackQueryHandler(button_click))
     
-    print("Auto-OTP Bot is running smoothly...")
+    print("Anti-Duplicate Auto-OTP Bot is running smoothly...")
     app.run_polling(drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
