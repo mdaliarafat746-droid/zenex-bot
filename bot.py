@@ -118,7 +118,6 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
                 otp_text = str(item.get('otp', '')).strip()
                 service = item.get('service', 'Facebook')
                 
-                # ইউনিক সিগনেচার দিয়ে ডাবল মেসেজ ব্লক করা হলো
                 unique_signature = f"{num}_{otp_text}"
                 
                 if unique_signature not in notified_nids:
@@ -136,7 +135,6 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
                         f"💰 Balance: `$0.0480`"
                     )
                     
-                    # নম্বর + ওটিপি কোড ফরম্যাট বাটনে সেট করা হলো
                     btn_label = f"📞 +{num} 🔑 {otp_text}"
                     keyboard = [[InlineKeyboardButton(btn_label, callback_data=f"copy_{otp_text}")]]
                     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -269,6 +267,7 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     f"_👆 উপরের নম্বরের ওপর ট্যাপ করলেই খুব সহজে কপি হয়ে যাবে!_"
                 )
 
+                # একই মেসেজের ভেতরে এডিট করে নম্বরগুলো দেখানো হচ্ছে যাতে আলাদা আরেকটি মেসেজ না আসে
                 await query.edit_message_text(result_msg, parse_mode="Markdown", reply_markup=reply_markup)
             else:
                 await query.edit_message_text("❌ দুঃখিত, বর্তমানে এই রেঞ্জে কোনো নম্বর স্টক নেই।")
@@ -281,8 +280,34 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer(text=f"কপি করা হয়েছে: {val_to_copy}", show_alert=True)
 
     elif data_code == "back_to_menu":
-        await query.message.delete()
-        await query.message.reply_text("মূল মেনু থেকে '📱 Get Number' এ ক্লিক করুন।")
+        # Change Country এ ক্লিক করলে পুনরায় ফ্রেশ রেঞ্জ লিস্ট প্যানেল থেকে লোড করে একই মেসেজে দেখাবে
+        try:
+            loading_msg = query.message
+            all_ranges = []
+            r1 = requests.get('https://api.zenexnetwork.com/v1/active-ranges', headers={'mapikey': PANEL_1_KEY}, timeout=10).json()
+            if r1.get('success') == True:
+                for r in r1.get('data', {}).get('active_ranges', []):
+                    r['panel_type'] = 'panel1'
+                    all_ranges.append(r)
+            
+            if len(all_ranges) > 0:
+                keyboard = []
+                for item in all_ranges[:30]:
+                    rng = str(item.get('range', ''))
+                    api_country = item.get('country', '')
+                    flag, c_code, _ = get_country_info_by_range_or_text(rng, api_country, str(item))
+                    formatted_srv = format_service_name(item)
+                    btn_text = f"{flag} {rng} | {formatted_srv}"
+                    keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"get3_{rng}_{c_code}")])
+                
+                keyboard.append([InlineKeyboardButton("❌ Close Menu", callback_data="close_menu")])
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                header_text = f"⚡ **ACTIVE RANGES**\n📂 Total Available: `{len(all_ranges)}`\n\n_নিচের তালিকা থেকে আপনার পছন্দের রেঞ্জটি সিলেক্ট করুন:_"
+                await loading_msg.edit_text(header_text, parse_mode="Markdown", reply_markup=reply_markup)
+            else:
+                await loading_msg.edit_text("❌ প্যানেল থেকে কোনো রেঞ্জ পাওয়া যায়নি।")
+        except:
+            await query.message.delete()
 
     elif data_code == "close_menu":
         await query.message.delete()
