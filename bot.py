@@ -55,22 +55,19 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
             
             for item in otps_list:
                 nid = item.get('nid')
-                # যদি এই ওটিপিটি আগে পাঠানো না হয়ে থাকে
                 if nid and nid not in notified_otps:
                     notified_otps.add(nid)
                     
-                    # মেমোরি খালি রাখার জন্য সেটের সাইজ লিমিট
                     if len(notified_otps) > 1000:
                         notified_otps.pop()
                     
                     num = item.get('number')
                     otp_text = item.get('otp')
                     country = item.get('country', 'Unknown')
-                    service = item.get('service', 'Facebook') # সার্ভিস নাম না থাকলে ডিফল্ট Facebook
+                    service = item.get('service', 'Facebook')
                     
                     flag = get_flag_by_text(country)
                     
-                    # স্ক্রিনশটের মতো আকর্ষণীয় ফরম্যাট
                     alert_msg = (
                         f"⚔️ **{service} Received.**\n"
                         f"❓ {flag} {country}\n"
@@ -120,27 +117,27 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 active_ranges = res_data.get('data', {}).get('active_ranges', [])
                 
                 keyboard = []
-                row = []
                 for item in active_ranges:
                     rng = item.get('range')
-                    srv = item.get('service')
+                    srv = item.get('service', 'FACEBOOK')
+                    hits = item.get('hits', '0') # যদি এপিআই থেকে হিট সংখ্যা থাকে
+                    
+                    # ক্যাটাগরি নির্ধারণ (আপনার লজিক বা এপিআই ডেটা অনুযায়ী)
+                    # প্যানেলে যদি নির্দিষ্ট কোনো ফিল্ড থাকে সেটি এখানে ব্যবহার করতে পারেন, যেমন item.get('type')
+                    mode_type = item.get('type', 'PC Clone') 
                     
                     flag = get_flag_by_text(srv)
-                    btn_text = f"{flag} {srv} ({rng})"
                     
-                    row.append(InlineKeyboardButton(btn_text, callback_data=f"get3_{rng}_{srv}"))
-                    if len(row) == 2:
-                        keyboard.append(row)
-                        row = []
-                
-                if row:
-                    keyboard.append(row)
+                    # স্ক্রিনশটের মতো সাজানো বাটন টেক্সট
+                    btn_text = f"{rng} | {srv} ({mode_type}) - [{hits} Hits]"
+                    
+                    keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"get3_{rng}_{srv}")])
                 
                 keyboard.append([InlineKeyboardButton("🔙 Close", callback_data="close_menu")])
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 
                 await loading_msg.edit_text(
-                    "⚡ **Select Service / Range**\n\n_নম্বর নিতে নিচের রেঞ্জগুলোতে ক্লিক করুন:_",
+                    "⚡ **TOP HITS RANGES**\n\n_কোন রেঞ্জটি PC Clone আর কোনটি New Fb তা দেখতে নিচে ক্লিক করুন:_",
                     parse_mode="Markdown",
                     reply_markup=reply_markup
                 )
