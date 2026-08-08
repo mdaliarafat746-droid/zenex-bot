@@ -96,7 +96,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
 
     if text == "📱 Get Number":
-        loading_msg = await update.message.reply_text("প্যানেল থেকে লাইভ রেঞ্জ লোড করা হচ্ছে...")
+        loading_msg = await update.message.reply_text("প্যানেল থেকে রিয়েল-টাইম হিট রেঞ্জ লোড করা হচ্ছে...")
         
         try:
             response = requests.get(
@@ -113,7 +113,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 for item in active_ranges:
                     rng = item.get('range')
                     srv = item.get('service', 'Facebook')
-                    hits = item.get('hits', '0')
+                    
+                    # আসল ১০ মিনিট বা সাম্প্রতিক সময়ের হিট ফিল্ড চেক করা (যেমন: hits_10m, recent_hits, last_hits ইত্যাদি)
+                    hits = None
+                    for hit_key in ['hits_10m', 'recent_hits', 'last_hits', 'ten_min_hits', 'hits']:
+                        if item.get(hit_key) is not None:
+                            hits = item.get(hit_key)
+                            break
+                    if hits is None:
+                        hits = item.get('hits', '0')
                     
                     mode_type = None
                     for key in ['mode', 'type', 'category', 'sub_service', 'tag', 'status', 'label']:
@@ -130,9 +138,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 keyboard.append([InlineKeyboardButton("🔙 Close", callback_data="close_menu")])
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 
-                # এখানে হেডার টাইটেলে Last 10 Minutes হিট কাউন্টের বিষয়টি যুক্ত করা হয়েছে
                 await loading_msg.edit_text(
-                    "⚡ **TOP HITS RANGES (Last 10M)**\n\n_শেষ ১০ মিনিটে কোন রেঞ্জে কত হিট করেছে তা নিচে দেখানো হলো:_",
+                    "⚡ **TOP HITS RANGES (Real-time)**\n\n_প্যানেলের সঠিক হিট রেঞ্জগুলো নিচে দেওয়া হলো:_",
                     parse_mode="Markdown",
                     reply_markup=reply_markup
                 )
