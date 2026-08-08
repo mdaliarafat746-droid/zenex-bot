@@ -101,7 +101,6 @@ def format_service_name(item):
     if "instagram" in full_str or srv == "INSTAGRAM":
         return "⚡ INSTAGRAM"
     
-    # প্যানেলের সাথে মিল রেখে সুন্দর ডিজাইন ও শর্ট ফরম্যাট
     if "clone" in full_str or "pc" in full_str:
         return "💻 PC Clone"
     else:
@@ -116,9 +115,10 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
             updated = False
             for item in otps_list:
                 num = item.get('number')
-                otp_text = item.get('otp')
+                otp_text = str(item.get('otp', '')).strip()
                 service = item.get('service', 'Facebook')
                 
+                # ইউনিক সিগনেচার দিয়ে ডাবল মেসেজ ব্লক করা হলো
                 unique_signature = f"{num}_{otp_text}"
                 
                 if unique_signature not in notified_nids:
@@ -136,7 +136,9 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
                         f"💰 Balance: `$0.0480`"
                     )
                     
-                    keyboard = [[InlineKeyboardButton(f"🔑 {otp_text}", callback_data=f"copy_{otp_text}")]]
+                    # নম্বর + ওটিপি কোড ফরম্যাট বাটনে সেট করা হলো
+                    btn_label = f"📞 +{num} 🔑 {otp_text}"
+                    keyboard = [[InlineKeyboardButton(btn_label, callback_data=f"copy_{otp_text}")]]
                     reply_markup = InlineKeyboardMarkup(keyboard)
                     
                     await context.bot.send_message(
@@ -185,7 +187,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 flag, c_code, _ = get_country_info_by_range_or_text(rng, api_country, str(item))
                 formatted_srv = format_service_name(item)
                 
-                # বাটনগুলোকে আরও ক্লিন ও সুন্দর লুক দেওয়া হলো
                 btn_text = f"{flag} {rng} | {formatted_srv}"
                 keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"get3_{rng}_{c_code}")])
             
