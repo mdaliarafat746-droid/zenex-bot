@@ -88,15 +88,15 @@ def get_country_info_by_range_or_text(range_str, country_field, raw_text=""):
 def get_service_emoji(service_name):
     srv = str(service_name).lower()
     if "instagram" in srv:
-        return "📸"
+        return "📸"  # ইনস্টাগ্রাম লোগো
     elif "facebook" in srv or "fb" in srv:
-        return "🌐"
+        return "📘"  # ফেসবুক লোগো
     elif "telegram" in srv:
         return "✈️"
     elif "whatsapp" in srv:
         return "💚"
     else:
-        return "🛡️"
+        return "🌐"
 
 async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
     try:
@@ -365,7 +365,7 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
     app.add_handler(CallbackQueryHandler(button_click))
     
-    print("Professional Multi-user OTP Bot is running successfully...")
+    print("Professional Multi-user OTP Bot with Logos is running successfully...")
     app.run_polling(drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
