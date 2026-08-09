@@ -18,7 +18,9 @@ PANEL_1_KEY = "ZNX_5GJKQ6O8MT1F20MSW2G9K4V9"
 ADMIN_CHAT_ID = "6470943912"  
 
 sent_otps_cache = set()
-active_user_numbers = set()
+
+# কোন নম্বরটি কোন ইউজারের চ্যাট আইডির, তা সেভ করার জন্য ডিকশনারি
+number_to_user_map = {}
 
 def extract_pure_code(full_text):
     text = str(full_text).strip()
@@ -106,8 +108,12 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
             
             for item in otps_list:
                 num = str(item.get('number')).strip()
-                if num not in active_user_numbers:
+                
+                # যদি নম্বরটি কোনো ইউজারের নেওয়া লিস্টে না থাকে, তবে স্কিপ করো
+                if num not in number_to_user_map:
                     continue
+                
+                target_chat_id = number_to_user_map[num]
                 
                 raw_otp = str(item.get('otp', '')).strip()
                 otp_text = extract_pure_code(raw_otp)
@@ -135,8 +141,9 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
                     f"🔐 `{otp_text}`\n"
                 )
                 
+                # ওটিপি সরাসরি সংশ্লিষ্ট ইউজারের চ্যাট আইডিতে চলে যাবে
                 await context.bot.send_message(
-                    chat_id=ADMIN_CHAT_ID, 
+                    chat_id=target_chat_id, 
                     text=msg_text, 
                     parse_mode="Markdown"
                 )
@@ -154,6 +161,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
+    chat_id = update.effective_chat.id
 
     if text == "📱 Get Number":
         loading_msg = await update.message.reply_text("⚡ প্যানেল থেকে রেঞ্জ লোড করা হচ্ছে...")
@@ -178,7 +186,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 srv = str(item.get('service', 'Facebook'))
                 srv_emoji = get_service_emoji(srv)
                 
-                # প্যানেলের ডেটা বা টাইটেল চেক করে Clone নাকি New Create লেবেল নির্ধারণ
                 raw_item_str = str(item).lower()
                 if "clone" in raw_item_str or "cl" in raw_item_str:
                     type_label = "🔄 Clone"
@@ -204,7 +211,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if res1.get('meta', {}).get('code') == 200:
                 for item in res1.get('data', {}).get('otps', [])[:5]:
                     num = str(item.get('number'))
-                    if num in active_user_numbers:
+                    # শুধুমাত্র ওই ইউজারের চ্যাট আইডির সাথে ম্যাচ করা নম্বরগুলোর লাইভ ওটিপি দেখাবে
+                    if number_to_user_map.get(num) == chat_id:
                         otp_text = extract_pure_code(item.get('otp', ''))
                         country = item.get('country', '')
                         flag, c_code, _ = get_country_info_by_range_or_text(num, country)
@@ -217,13 +225,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await loading_msg.edit_text(f"এরর: {e}")
             
     elif text == "👤 Profile":
-        await update.message.reply_text(f"আপনার টেলিগ্রাম আইডি: {update.effective_user.id}")
+        await update.message.reply_text(f"আপনার টেলিগ্রাম আইডি: {chat_id}")
     else:
         pass
 
 async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     data_code = query.data
+    chat_id = query.message.chat.id
 
     await query.answer()
 
@@ -250,7 +259,8 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     full_num = str(num_data.get('full_number')).strip()
                     if full_num:
                         assigned_numbers.append(full_num)
-                        active_user_numbers.add(full_num)
+                        # নম্বরটি কার চ্যাট আইডি, তা ম্যাপ করে রাখা হলো
+                        number_to_user_map[full_num] = chat_id
                         _, detected_c_code, _ = get_country_info_by_range_or_text(full_num, num_data.get('country', ''))
 
             if len(assigned_numbers) > 0:
@@ -331,7 +341,7 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
     app.add_handler(CallbackQueryHandler(button_click))
     
-    print("Bot with Clone/New labels is running successfully...")
+    print("Multi-user OTP Bot is running successfully...")
     app.run_polling(drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
