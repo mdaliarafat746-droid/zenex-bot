@@ -88,9 +88,9 @@ def get_country_info_by_range_or_text(range_str, country_field, raw_text=""):
 def get_service_emoji(service_name):
     srv = str(service_name).lower()
     if "instagram" in srv:
-        return "📸"  # ইনস্টাগ্রাম লোগো
+        return "🟣📸"  # ইনস্টাগ্রাম লোগো ও কালার রিপ্রেজেন্টেশন
     elif "facebook" in srv or "fb" in srv:
-        return "📘"  # ফেসবুক লোগো
+        return "🔵📘"  # ফেসবুক লোগো ও কালার রিপ্রেজেন্টেশন
     elif "telegram" in srv:
         return "✈️"
     elif "whatsapp" in srv:
@@ -199,7 +199,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 else:
                     type_label = "✨ New Create"
                 
-                btn_text = f"{flag} {rng} | {srv_emoji} {type_label}"
+                btn_text = f"{flag} {rng} | {srv_emoji} | {type_label}"
                 keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"get3_{rng}_{c_code}")])
             
             keyboard.append([InlineKeyboardButton("❌ Close Menu", callback_data="close_menu")])
@@ -337,7 +337,7 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     else:
                         type_label = "✨ New Create"
                         
-                    btn_text = f"{flag} {rng} | {srv_emoji} {type_label}"
+                    btn_text = f"{flag} {rng} | {srv_emoji} | {type_label}"
                     keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"get3_{rng}_{c_code}")])
                 
                 keyboard.append([InlineKeyboardButton("❌ Close Menu", callback_data="close_menu")])
@@ -365,7 +365,7 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
     app.add_handler(CallbackQueryHandler(button_click))
     
-    print("Professional Multi-user OTP Bot with Logos is running successfully...")
+    print("Bot is running successfully with precise logos and labels...")
     app.run_polling(drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
