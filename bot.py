@@ -35,14 +35,13 @@ def load_nids():
 
 def save_nids(nids_dict):
     try:
-        # দীর্ঘস্থায়ী সুরক্ষার জন্য ফাইল সেভ সিস্টেম
         with open(NID_FILE, "w", encoding="utf-8") as f:
             json.dump(nids_dict, f)
     except Exception as e:
         print(f"NID Save Error: {e}")
 
 sent_otps_cache = load_nids()
-active_session_lock = set()
+processed_in_memory = set()
 
 def extract_pure_code(full_text):
     text = str(full_text).strip()
@@ -131,7 +130,6 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
             current_time = time.time()
             updated = False
             
-            # ৬ ঘণ্টার বেশি পুরনো ক্যাশ স্বয়ংক্রয়ভাবে ডিলিট হবে
             expired_keys = [k for k, t in sent_otps_cache.items() if current_time - t > 21600]
             for k in expired_keys:
                 del sent_otps_cache[k]
@@ -143,21 +141,19 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
                 otp_text = extract_pure_code(raw_otp)
                 service = str(item.get('service', 'Facebook')).strip()
                 
-                # প্যানেল থেকে আসা ডেটার নিজস্ব ইউনিক আইডি বা টাইমস্ট্যাম্প থাকলে তা দিয়ে ডাবল চেক করা
+                # প্যানেল থেকে আসা ডেটার নিজস্ব ইউনিক আইডি বা সম্পূর্ণ স্ট্রাকচার দিয়ে ইউনিক ফিঙ্গারপ্রিন্ট
                 api_id = str(item.get('id', item.get('_id', ''))).strip()
-                
-                # সবচেয়ে শক্তিশালী ইউনিক ফিঙ্গারপ্রিন্ট (আইডি + নম্বর + ওটিপি)
                 if api_id and api_id != '':
                     unique_signature = f"id_{api_id}"
                 else:
-                    unique_signature = f"{num}_{otp_text}_{service}"
+                    unique_signature = f"num_{num}_otp_{otp_text}_srv_{service}"
                 
-                # যদি ক্যাশ মেমোরি বা রানিং প্রসেসে ইতিমধ্যে থাকে, তবে স্কিপ করো
-                if unique_signature in sent_otps_cache or unique_signature in active_session_lock:
+                # যদি ক্যাশ মেমোরি, ফাইল বা রানিং লিস্টে থাকে, তবে নিশ্চিতভাবে স্কিপ করবে
+                if unique_signature in sent_otps_cache or unique_signature in processed_in_memory:
                     continue
                 
-                # তাৎক্ষণিকভাবে লক করে ফেলা
-                active_session_lock.add(unique_signature)
+                # রানিং মেমোরি এবং পার্মানেন্ট ক্যাশ দুটিতেই সাথে সাথে এন্ট্রি দেওয়া হচ্ছে
+                processed_in_memory.add(unique_signature)
                 sent_otps_cache[unique_signature] = current_time
                 updated = True
                     
@@ -351,7 +347,7 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
     app.add_handler(CallbackQueryHandler(button_click))
     
-    print("Zero-Duplicate Power Bot is running successfully...")
+    print("Ultimate Protected Bot is running...")
     app.run_polling(drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
