@@ -94,7 +94,7 @@ def get_service_display(service_name, raw_item):
     elif "instagram" in srv:
         return "📸 Instagram"
     else:
-        return "📘 New FB"
+        return "📘 FACEBOOK"
 
 async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
     try:
@@ -351,7 +351,7 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
     app.add_handler(CallbackQueryHandler(button_click))
     
-    print("Bot is running successfully with clean service labels...")
+    print("Bot is running successfully with FACEBOOK label update...")
     app.run_polling(drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
