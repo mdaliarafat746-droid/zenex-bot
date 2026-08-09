@@ -18,8 +18,6 @@ PANEL_1_KEY = "ZNX_5GJKQ6O8MT1F20MSW2G9K4V9"
 ADMIN_CHAT_ID = "6470943912"  
 
 sent_otps_cache = set()
-
-# কোন নম্বরটি কোন ইউজারের চ্যাট আইডির, তা সেভ করার জন্য ডিকশনারি
 number_to_user_map = {}
 
 def extract_pure_code(full_text):
@@ -92,13 +90,13 @@ def get_service_emoji(service_name):
     if "instagram" in srv:
         return "📸"
     elif "facebook" in srv or "fb" in srv:
-        return "FB"
+        return "🌐"
     elif "telegram" in srv:
         return "✈️"
     elif "whatsapp" in srv:
         return "💚"
     else:
-        return "🌐"
+        return "🛡️"
 
 async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
     try:
@@ -108,8 +106,6 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
             
             for item in otps_list:
                 num = str(item.get('number')).strip()
-                
-                # যদি নম্বরটি কোনো ইউজারের নেওয়া লিস্টে না থাকে, তবে স্কিপ করো
                 if num not in number_to_user_map:
                     continue
                 
@@ -137,11 +133,16 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
                 srv_emoji = get_service_emoji(service)
                 
                 msg_text = (
-                    f"{flag} **{c_code}** {srv_emoji} `+{num}`\n"
-                    f"🔐 `{otp_text}`\n"
+                    f"🔔 **NEW VERIFICATION CODE RECEIVED**\n"
+                    f"━━━━━━━━━━━━━━━━━━━\n"
+                    f"🌍 **Country:** {flag} `{c_code}`\n"
+                    f"📱 **Number:** `+{num}`\n"
+                    f"{srv_emoji} **Service:** `{service}`\n"
+                    f"🔑 **OTP Code:** `{otp_text}`\n"
+                    f"━━━━━━━━━━━━━━━━━━━\n"
+                    f"⚡ _Status: Successfully Delivered_"
                 )
                 
-                # ওটিপি সরাসরি সংশ্লিষ্ট ইউজারের চ্যাট আইডিতে চলে যাবে
                 await context.bot.send_message(
                     chat_id=target_chat_id, 
                     text=msg_text, 
@@ -153,18 +154,24 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
-        [KeyboardButton("📱 Get Number"), KeyboardButton("📩 Check Live OTP")],
-        [KeyboardButton("👤 Profile")]
+        [KeyboardButton("📱 Get Number"), KeyboardButton("📩 Live OTP Inbox")],
+        [KeyboardButton("👤 Account Profile")]
     ]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-    await update.message.reply_text("স্বাগতম! অটো-ওটিপি বোটে আপনাকে স্বাগতম:", reply_markup=reply_markup)
+    
+    welcome_text = (
+        f"👋 **Welcome to Automated OTP Gateway!**\n\n"
+        f"✨ Fast, secure, and reliable virtual number & OTP management service.\n"
+        f"📌 Please choose an option from the menu below to get started:"
+    )
+    await update.message.reply_text(welcome_text, parse_mode="Markdown", reply_markup=reply_markup)
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     chat_id = update.effective_chat.id
 
     if text == "📱 Get Number":
-        loading_msg = await update.message.reply_text("⚡ প্যানেল থেকে রেঞ্জ লোড করা হচ্ছে...")
+        loading_msg = await update.message.reply_text("🔄 **Fetching active ranges from secure gateway...**", parse_mode="Markdown")
         all_ranges = []
         
         try:
@@ -198,34 +205,45 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             keyboard.append([InlineKeyboardButton("❌ Close Menu", callback_data="close_menu")])
             reply_markup = InlineKeyboardMarkup(keyboard)
             
-            header_text = f"⚡ **ACTIVE RANGES**\n📂 Total Available: `{len(all_ranges)}`\n\n_নিচের তালিকা থেকে আপনার পছন্দের রেঞ্জটি সিলেক্ট করুন:_"
+            header_text = (
+                f"⚡ **LIVE ACTIVE RANGES**\n"
+                f"📂 **Available Slots:** `{len(all_ranges)}`\n\n"
+                f"👇 _Select your preferred range below:_"
+            )
             await loading_msg.edit_text(header_text, parse_mode="Markdown", reply_markup=reply_markup)
         else:
-            await loading_msg.edit_text("❌ প্যানেল থেকে কোনো রেঞ্জ পাওয়া যায়নি।")
+            await loading_msg.edit_text("❌ **No active ranges found in the gateway at the moment.**", parse_mode="Markdown")
             
-    elif text == "📩 Check Live OTP":
-        loading_msg = await update.message.reply_text("ওটিপি চেক করা হচ্ছে...")
+    elif text == "📩 Live OTP Inbox":
+        loading_msg = await update.message.reply_text("🔍 **Checking inbox records...**", parse_mode="Markdown")
         try:
-            msg = "📥 **Live OTP Payloads:**\n\n"
+            msg = "📥 **Active Inbox Payloads:**\n\n"
             res1 = requests.get('https://api.zenexnetwork.com/v1/numsuccess/info', headers={'mapikey': PANEL_1_KEY}, timeout=10).json()
             if res1.get('meta', {}).get('code') == 200:
                 for item in res1.get('data', {}).get('otps', [])[:5]:
                     num = str(item.get('number'))
-                    # শুধুমাত্র ওই ইউজারের চ্যাট আইডির সাথে ম্যাচ করা নম্বরগুলোর লাইভ ওটিপি দেখাবে
                     if number_to_user_map.get(num) == chat_id:
                         otp_text = extract_pure_code(item.get('otp', ''))
                         country = item.get('country', '')
                         flag, c_code, _ = get_country_info_by_range_or_text(num, country)
                         srv_emoji = get_service_emoji(item.get('service', 'Facebook'))
-                        msg += f"{flag} **{c_code}** {srv_emoji} `+{num}`\n🔑 `{otp_text}`\n-------------------\n"
-            if len(msg) <= 30:
-                msg = "❌ আপনার বর্তমান নেওয়া কোনো নম্বরের লাইভ ওটিপি নেই।"
+                        msg += f"{flag} `{c_code}` | `+{num}`\n🔑 Code: `{otp_text}`\n──────────────────\n"
+            if len(msg) <= 35:
+                msg = "📭 **Inbox is clean!** No active verification codes found for your numbers."
             await loading_msg.edit_text(msg, parse_mode="Markdown")
         except Exception as e:
-            await loading_msg.edit_text(f"এরর: {e}")
+            await loading_msg.edit_text(f"⚠️ **Error occurred:** `{e}`", parse_mode="Markdown")
             
-    elif text == "👤 Profile":
-        await update.message.reply_text(f"আপনার টেলিগ্রাম আইডি: {chat_id}")
+    elif text == "👤 Account Profile":
+        profile_msg = (
+            f"👤 **USER PROFILE INFORMATION**\n"
+            f"━━━━━━━━━━━━━━━━━━━\n"
+            f"🆔 **Telegram ID:** `{chat_id}`\n"
+            f"📊 **Account Status:** `Active / Premium`\n"
+            f"🛡️ **Security Level:** `Encrypted`\n"
+            f"━━━━━━━━━━━━━━━━━━━"
+        )
+        await update.message.reply_text(profile_msg, parse_mode="Markdown")
     else:
         pass
 
@@ -241,7 +259,7 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
         range_value = parts[1]
         c_code = parts[2] if len(parts) > 2 else "MZ"
         
-        await query.edit_message_text(text="🔄 প্যানেল থেকে নম্বর অ্যাসাইন করা হচ্ছে...")
+        await query.edit_message_text(text="⚙️ **Allocating numbers from server pool, please wait...**", parse_mode="Markdown")
 
         assigned_numbers = []
         detected_c_code = c_code
@@ -259,7 +277,6 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     full_num = str(num_data.get('full_number')).strip()
                     if full_num:
                         assigned_numbers.append(full_num)
-                        # নম্বরটি কার চ্যাট আইডি, তা ম্যাপ করে রাখা হলো
                         number_to_user_map[full_num] = chat_id
                         _, detected_c_code, _ = get_country_info_by_range_or_text(full_num, num_data.get('country', ''))
 
@@ -272,25 +289,28 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     numbers_block += f"📱 `+{clean_num}`\n"
                 
                 keyboard = [
-                    [InlineKeyboardButton("🔄 Change Number", callback_data=f"get3_{range_value}_{c_code}")],
-                    [InlineKeyboardButton("🌐 Change Country", callback_data="back_to_menu")]
+                    [InlineKeyboardButton("🔄 Refresh / Get New", callback_data=f"get3_{range_value}_{c_code}")],
+                    [InlineKeyboardButton("🌐 Back to Country Menu", callback_data="back_to_menu")]
                 ]
                 
                 reply_markup = InlineKeyboardMarkup(keyboard)
 
                 result_msg = (
-                    f"🌍 **Country:** {flag} **{full_country_name}** ({final_c_code})\n"
-                    f"🎟️ **Status:** Waiting for OTP...\n\n"
+                    f"✅ **NUMBERS SUCCESSFULLY ASSIGNED**\n"
+                    f"━━━━━━━━━━━━━━━━━━━\n"
+                    f"🌍 **Country:** {flag} **{full_country_name}** (`{final_c_code}`)\n"
+                    f"⏳ **Status:** `Waiting for incoming OTP...`\n\n"
                     f"{numbers_block}\n"
-                    f"_👆 উপরের নম্বরের ওপর ট্যাপ করলেই খুব সহজে কপি হয়ে যাবে!_"
+                    f"━━━━━━━━━━━━━━━━━━━\n"
+                    f"💡 _Tap any number above to copy instantly!_"
                 )
 
                 await query.edit_message_text(result_msg, parse_mode="Markdown", reply_markup=reply_markup)
             else:
-                await query.edit_message_text("❌ দুঃখিত, বর্তমানে এই রেঞ্জে কোনো নম্বর স্টক নেই।")
+                await query.edit_message_text("❌ **Stock Exhausted:** No numbers available for this range right now.", parse_mode="Markdown")
                 
         except Exception as e:
-            await query.edit_message_text("❌ সার্ভার থেকে রেসপন্স পেতে দেরি হচ্ছে। আবার চেষ্টা করুন।")
+            await query.edit_message_text("⚠️ **Gateway Timeout:** Failed to fetch numbers. Please try again.", parse_mode="Markdown")
 
     elif data_code == "back_to_menu":
         try:
@@ -322,10 +342,14 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 
                 keyboard.append([InlineKeyboardButton("❌ Close Menu", callback_data="close_menu")])
                 reply_markup = InlineKeyboardMarkup(keyboard)
-                header_text = f"⚡ **ACTIVE RANGES**\n📂 Total Available: `{len(all_ranges)}`\n\n_নিচের তালিকা থেকে আপনার পছন্দের রেঞ্জটি সিলেক্ট করুন:_"
+                header_text = (
+                    f"⚡ **LIVE ACTIVE RANGES**\n"
+                    f"📂 **Available Slots:** `{len(all_ranges)}`\n\n"
+                    f"👇 _Select your preferred range below:_"
+                )
                 await loading_msg.edit_text(header_text, parse_mode="Markdown", reply_markup=reply_markup)
             else:
-                await loading_msg.edit_text("❌ প্যানেল থেকে কোনো রেঞ্জ পাওয়া যায়নি।")
+                await loading_msg.edit_text("❌ **No active ranges found.**", parse_mode="Markdown")
         except:
             await query.message.delete()
 
@@ -341,7 +365,7 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
     app.add_handler(CallbackQueryHandler(button_click))
     
-    print("Multi-user OTP Bot is running successfully...")
+    print("Professional Multi-user OTP Bot is running successfully...")
     app.run_polling(drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
