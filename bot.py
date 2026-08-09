@@ -17,31 +17,29 @@ BOT_TOKEN = "8998738234:AAGpV1zS4miYRC9AxNpSHvJNyWPgkfI9-U4"
 PANEL_1_KEY = "ZNX_5GJKQ6O8MT1F20MSW2G9K4V9"
 ADMIN_CHAT_ID = "6470943912"  
 
-NID_FILE = "notified_nids.json"
+CACHE_FILE = "sent_otps_cache.json"
 
-def load_nids():
-    if os.path.exists(NID_FILE):
+# পার্মানেন্ট ক্যাশ লোড করা
+def load_cache():
+    if os.path.exists(CACHE_FILE):
         try:
-            with open(NID_FILE, "r", encoding="utf-8") as f:
+            with open(CACHE_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                if isinstance(data, list):
-                    current_time = time.time()
-                    return {item: current_time for item in data}
-                elif isinstance(data, dict):
+                if isinstance(data, dict):
                     return data
         except:
             return {}
     return {}
 
-def save_nids(nids_dict):
+def save_cache(cache_dict):
     try:
-        with open(NID_FILE, "w", encoding="utf-8") as f:
-            json.dump(nids_dict, f)
+        with open(CACHE_FILE, "w", encoding="utf-8") as f:
+            json.dump(cache_dict, f)
     except Exception as e:
-        print(f"NID Save Error: {e}")
+        print(f"Cache Save Error: {e}")
 
-sent_otps_cache = load_nids()
-processed_in_memory = set()
+sent_otps_cache = load_cache()
+active_memory_lock = set(sent_otps_cache.keys())
 
 def extract_pure_code(full_text):
     text = str(full_text).strip()
@@ -130,30 +128,26 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
             current_time = time.time()
             updated = False
             
-            expired_keys = [k for k, t in sent_otps_cache.items() if current_time - t > 21600]
-            for k in expired_keys:
-                del sent_otps_cache[k]
-                updated = True
-
             for item in otps_list:
                 num = str(item.get('number')).strip()
                 raw_otp = str(item.get('otp', '')).strip()
                 otp_text = extract_pure_code(raw_otp)
                 service = str(item.get('service', 'Facebook')).strip()
                 
-                # প্যানেল থেকে আসা ডেটার নিজস্ব ইউনিক আইডি বা সম্পূর্ণ স্ট্রাকচার দিয়ে ইউনিক ফিঙ্গারপ্রিন্ট
+                # প্যানেলের ডেটা থেকে একেবারে ইউনিক ফিঙ্গারপ্রিন্ট বা আইডি তৈরি
                 api_id = str(item.get('id', item.get('_id', ''))).strip()
                 if api_id and api_id != '':
                     unique_signature = f"id_{api_id}"
                 else:
+                    # আইডি না থাকলে নম্বর + ওটিপি + সার্ভিস দিয়ে পারফেক্ট ইউনিক কি
                     unique_signature = f"num_{num}_otp_{otp_text}_srv_{service}"
                 
-                # যদি ক্যাশ মেমোরি, ফাইল বা রানিং লিস্টে থাকে, তবে নিশ্চিতভাবে স্কিপ করবে
-                if unique_signature in sent_otps_cache or unique_signature in processed_in_memory:
+                # যদি মেমোরি বা ক্যাশ ফাইলে এই সিগনেচার আগে থেকেই থাকে, তবে ১০০% ব্লক হবে
+                if unique_signature in active_memory_lock or unique_signature in sent_otps_cache:
                     continue
                 
-                # রানিং মেমোরি এবং পার্মানেন্ট ক্যাশ দুটিতেই সাথে সাথে এন্ট্রি দেওয়া হচ্ছে
-                processed_in_memory.add(unique_signature)
+                # তাৎক্ষণিকভাবে লক এবং ক্যাশ মেমোরিতে যুক্ত করা
+                active_memory_lock.add(unique_signature)
                 sent_otps_cache[unique_signature] = current_time
                 updated = True
                     
@@ -173,7 +167,7 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
                 )
             
             if updated:
-                save_nids(sent_otps_cache)
+                save_cache(sent_otps_cache)
                 
     except Exception as e:
         print(f"OTP Checker Error: {e}")
@@ -347,7 +341,7 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
     app.add_handler(CallbackQueryHandler(button_click))
     
-    print("Ultimate Protected Bot is running...")
+    print("Anti-Double Block Bot is running successfully...")
     app.run_polling(drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
