@@ -17,29 +17,8 @@ BOT_TOKEN = "8998738234:AAGpV1zS4miYRC9AxNpSHvJNyWPgkfI9-U4"
 PANEL_1_KEY = "ZNX_5GJKQ6O8MT1F20MSW2G9K4V9"
 ADMIN_CHAT_ID = "6470943912"  
 
-CACHE_FILE = "sent_otps_cache.json"
-
-# পার্মানেন্ট ক্যাশ লোড করা
-def load_cache():
-    if os.path.exists(CACHE_FILE):
-        try:
-            with open(CACHE_FILE, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                if isinstance(data, dict):
-                    return data
-        except:
-            return {}
-    return {}
-
-def save_cache(cache_dict):
-    try:
-        with open(CACHE_FILE, "w", encoding="utf-8") as f:
-            json.dump(cache_dict, f)
-    except Exception as e:
-        print(f"Cache Save Error: {e}")
-
-sent_otps_cache = load_cache()
-active_memory_lock = set(sent_otps_cache.keys())
+# রেলওয়ের ক্লাউড সার্ভারের জন্য ইন-মেমোরি ক্যাশ ও ডুপ্লিকেট ফিল্টার
+sent_otps_cache = set()
 
 def extract_pure_code(full_text):
     text = str(full_text).strip()
@@ -125,31 +104,29 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
         if res1.get('meta', {}).get('code') == 200:
             otps_list = res1.get('data', {}).get('otps', [])
             
-            current_time = time.time()
-            updated = False
-            
             for item in otps_list:
                 num = str(item.get('number')).strip()
                 raw_otp = str(item.get('otp', '')).strip()
                 otp_text = extract_pure_code(raw_otp)
                 service = str(item.get('service', 'Facebook')).strip()
                 
-                # প্যানেলের ডেটা থেকে একেবারে ইউনিক ফিঙ্গারপ্রিন্ট বা আইডি তৈরি
+                # প্যানেল থেকে আসা ইউনিক আইডি বা ডেটা দিয়ে ফিঙ্গারপ্রিন্ট তৈরি
                 api_id = str(item.get('id', item.get('_id', ''))).strip()
                 if api_id and api_id != '':
                     unique_signature = f"id_{api_id}"
                 else:
-                    # আইডি না থাকলে নম্বর + ওটিপি + সার্ভিস দিয়ে পারফেক্ট ইউনিক কি
                     unique_signature = f"num_{num}_otp_{otp_text}_srv_{service}"
                 
-                # যদি মেমোরি বা ক্যাশ ফাইলে এই সিগনেচার আগে থেকেই থাকে, তবে ১০০% ব্লক হবে
-                if unique_signature in active_memory_lock or unique_signature in sent_otps_cache:
+                # ক্যাশে থাকলে সাথে সাথে বাদ যাবে
+                if unique_signature in sent_otps_cache:
                     continue
                 
-                # তাৎক্ষণিকভাবে লক এবং ক্যাশ মেমোরিতে যুক্ত করা
-                active_memory_lock.add(unique_signature)
-                sent_otps_cache[unique_signature] = current_time
-                updated = True
+                # নতুন হলে ক্যাশে অ্যাড করা হবে
+                sent_otps_cache.add(unique_signature)
+                
+                # মেমোরি বেশি বড় হওয়া রোধ করতে লিমি트 রাখা ভালো
+                if len(sent_otps_cache) > 1000:
+                    sent_otps_cache.pop()
                     
                 country = item.get('country', '')
                 flag, c_code, _ = get_country_info_by_range_or_text(num, country)
@@ -165,9 +142,6 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
                     text=msg_text, 
                     parse_mode="Markdown"
                 )
-            
-            if updated:
-                save_cache(sent_otps_cache)
                 
     except Exception as e:
         print(f"OTP Checker Error: {e}")
@@ -341,7 +315,8 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
     app.add_handler(CallbackQueryHandler(button_click))
     
-    print("Anti-Double Block Bot is running successfully...")
+    print("Cloud Optimized Bot is running successfully...")
+    # কনফ্লিক্ট এড়াতে এবং ঝুলন্ত আপডেট ড্রপ করতে drop_pending_updates=True ব্যবহার করা হয়েছে
     app.run_polling(drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
