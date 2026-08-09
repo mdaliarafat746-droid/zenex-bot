@@ -85,18 +85,16 @@ def get_country_info_by_range_or_text(range_str, country_field, raw_text=""):
             return "🇧🇯", "BJ", "BENIN"
         return "🌍", "MZ", "MOZAMBIQUE"
 
-def get_service_emoji(service_name):
+def get_service_display(service_name, raw_item):
     srv = str(service_name).lower()
-    if "instagram" in srv:
-        return "🟣📸"  # ইনস্টাগ্রাম লোগো ও কালার রিপ্রেজেন্টেশন
-    elif "facebook" in srv or "fb" in srv:
-        return "🔵📘"  # ফেসবুক লোগো ও কালার রিপ্রেজেন্টেশন
-    elif "telegram" in srv:
-        return "✈️"
-    elif "whatsapp" in srv:
-        return "💚"
+    raw_item_str = str(raw_item).lower()
+    
+    if "clone" in raw_item_str or "cl" in raw_item_str:
+        return "💻 PC Clone"
+    elif "instagram" in srv:
+        return "📸 Instagram"
     else:
-        return "🌐"
+        return "📘 New FB"
 
 async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
     try:
@@ -130,14 +128,14 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
                     
                 country = item.get('country', '')
                 flag, c_code, _ = get_country_info_by_range_or_text(num, country)
-                srv_emoji = get_service_emoji(service)
+                label_text = get_service_display(service, item)
                 
                 msg_text = (
                     f"🔔 **NEW VERIFICATION CODE RECEIVED**\n"
                     f"━━━━━━━━━━━━━━━━━━━\n"
                     f"🌍 **Country:** {flag} `{c_code}`\n"
                     f"📱 **Number:** `+{num}`\n"
-                    f"{srv_emoji} **Service:** `{service}`\n"
+                    f"📌 **Type:** `{label_text}`\n"
                     f"🔑 **OTP Code:** `{otp_text}`\n"
                     f"━━━━━━━━━━━━━━━━━━━\n"
                     f"⚡ _Status: Successfully Delivered_"
@@ -191,15 +189,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 
                 flag, c_code, _ = get_country_info_by_range_or_text(rng, api_country, str(item))
                 srv = str(item.get('service', 'Facebook'))
-                srv_emoji = get_service_emoji(srv)
                 
-                raw_item_str = str(item).lower()
-                if "clone" in raw_item_str or "cl" in raw_item_str:
-                    type_label = "🔄 Clone"
-                else:
-                    type_label = "✨ New Create"
-                
-                btn_text = f"{flag} {rng} | {srv_emoji} | {type_label}"
+                type_label = get_service_display(srv, item)
+                btn_text = f"{flag} {rng} | {type_label}"
                 keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"get3_{rng}_{c_code}")])
             
             keyboard.append([InlineKeyboardButton("❌ Close Menu", callback_data="close_menu")])
@@ -226,8 +218,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         otp_text = extract_pure_code(item.get('otp', ''))
                         country = item.get('country', '')
                         flag, c_code, _ = get_country_info_by_range_or_text(num, country)
-                        srv_emoji = get_service_emoji(item.get('service', 'Facebook'))
-                        msg += f"{flag} `{c_code}` | `+{num}`\n🔑 Code: `{otp_text}`\n──────────────────\n"
+                        label_text = get_service_display(item.get('service', 'Facebook'), item)
+                        msg += f"{flag} `{c_code}` | `+{num}`\n📌 `{label_text}`\n🔑 Code: `{otp_text}`\n──────────────────\n"
             if len(msg) <= 35:
                 msg = "📭 **Inbox is clean!** No active verification codes found for your numbers."
             await loading_msg.edit_text(msg, parse_mode="Markdown")
@@ -329,15 +321,9 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     api_country = item.get('country', '')
                     flag, c_code, _ = get_country_info_by_range_or_text(rng, api_country, str(item))
                     srv = str(item.get('service', 'Facebook'))
-                    srv_emoji = get_service_emoji(srv)
                     
-                    raw_item_str = str(item).lower()
-                    if "clone" in raw_item_str or "cl" in raw_item_str:
-                        type_label = "🔄 Clone"
-                    else:
-                        type_label = "✨ New Create"
-                        
-                    btn_text = f"{flag} {rng} | {srv_emoji} | {type_label}"
+                    type_label = get_service_display(srv, item)
+                    btn_text = f"{flag} {rng} | {type_label}"
                     keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"get3_{rng}_{c_code}")])
                 
                 keyboard.append([InlineKeyboardButton("❌ Close Menu", callback_data="close_menu")])
@@ -365,7 +351,7 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
     app.add_handler(CallbackQueryHandler(button_click))
     
-    print("Bot is running successfully with precise logos and labels...")
+    print("Bot is running successfully with clean service labels...")
     app.run_polling(drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
