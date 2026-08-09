@@ -17,7 +17,6 @@ BOT_TOKEN = "8998738234:AAGpV1zS4miYRC9AxNpSHvJNyWPgkfI9-U4"
 PANEL_1_KEY = "ZNX_5GJKQ6O8MT1F20MSW2G9K4V9"
 ADMIN_CHAT_ID = "6470943912"  
 
-# রেলওয়ে ও ক্লাউডের জন্য মেমোরি ক্যাশ এবংভ একটিভ নম্বর সেট
 sent_otps_cache = set()
 active_user_numbers = set()
 
@@ -107,8 +106,6 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
             
             for item in otps_list:
                 num = str(item.get('number')).strip()
-                
-                # ফিল্টার: নম্বরটি যদি আপনার বা ইউজারের নেওয়া active_user_numbers এর মধ্যে না থাকে, তবে স্কিপ করবে
                 if num not in active_user_numbers:
                     continue
                 
@@ -181,7 +178,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 srv = str(item.get('service', 'Facebook'))
                 srv_emoji = get_service_emoji(srv)
                 
-                btn_text = f"{flag} {rng} | {srv_emoji} {srv}"
+                # প্যানেলের ডেটা বা টাইটেল চেক করে Clone নাকি New Create লেবেল নির্ধারণ
+                raw_item_str = str(item).lower()
+                if "clone" in raw_item_str or "cl" in raw_item_str:
+                    type_label = "🔄 Clone"
+                else:
+                    type_label = "✨ New Create"
+                
+                btn_text = f"{flag} {rng} | {srv_emoji} {type_label}"
                 keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"get3_{rng}_{c_code}")])
             
             keyboard.append([InlineKeyboardButton("❌ Close Menu", callback_data="close_menu")])
@@ -200,7 +204,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if res1.get('meta', {}).get('code') == 200:
                 for item in res1.get('data', {}).get('otps', [])[:5]:
                     num = str(item.get('number'))
-                    # এখানেও শুধুমাত্র আপনার নেওয়া নম্বরগুলোর লাইভ ওটিপি দেখাবে
                     if num in active_user_numbers:
                         otp_text = extract_pure_code(item.get('otp', ''))
                         country = item.get('country', '')
@@ -247,7 +250,6 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     full_num = str(num_data.get('full_number')).strip()
                     if full_num:
                         assigned_numbers.append(full_num)
-                        # বট থেকে নেওয়া নম্বরটিভ লিস্টে যুক্ত করা হচ্ছে যাতে শুধু এটারই ওটিপি আসে
                         active_user_numbers.add(full_num)
                         _, detected_c_code, _ = get_country_info_by_range_or_text(full_num, num_data.get('country', ''))
 
@@ -298,7 +300,14 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     flag, c_code, _ = get_country_info_by_range_or_text(rng, api_country, str(item))
                     srv = str(item.get('service', 'Facebook'))
                     srv_emoji = get_service_emoji(srv)
-                    btn_text = f"{flag} {rng} | {srv_emoji} {srv}"
+                    
+                    raw_item_str = str(item).lower()
+                    if "clone" in raw_item_str or "cl" in raw_item_str:
+                        type_label = "🔄 Clone"
+                    else:
+                        type_label = "✨ New Create"
+                        
+                    btn_text = f"{flag} {rng} | {srv_emoji} {type_label}"
                     keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"get3_{rng}_{c_code}")])
                 
                 keyboard.append([InlineKeyboardButton("❌ Close Menu", callback_data="close_menu")])
@@ -322,7 +331,7 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
     app.add_handler(CallbackQueryHandler(button_click))
     
-    print("Filtered OTP Bot is running successfully...")
+    print("Bot with Clone/New labels is running successfully...")
     app.run_polling(drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
