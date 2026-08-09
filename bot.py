@@ -17,8 +17,9 @@ BOT_TOKEN = "8998738234:AAGpV1zS4miYRC9AxNpSHvJNyWPgkfI9-U4"
 PANEL_1_KEY = "ZNX_5GJKQ6O8MT1F20MSW2G9K4V9"
 ADMIN_CHAT_ID = "6470943912"  
 
-# রেলওয়ের ক্লাউড সার্ভারের জন্য ইন-মেমোরি ক্যাশ ও ডুপ্লিকেট ফিল্টার
+# রেলওয়ে ও ক্লাউডের জন্য মেমোরি ক্যাশ এবংভ একটিভ নম্বর সেট
 sent_otps_cache = set()
+active_user_numbers = set()
 
 def extract_pure_code(full_text):
     text = str(full_text).strip()
@@ -106,25 +107,25 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
             
             for item in otps_list:
                 num = str(item.get('number')).strip()
+                
+                # ফিল্টার: নম্বরটি যদি আপনার বা ইউজারের নেওয়া active_user_numbers এর মধ্যে না থাকে, তবে স্কিপ করবে
+                if num not in active_user_numbers:
+                    continue
+                
                 raw_otp = str(item.get('otp', '')).strip()
                 otp_text = extract_pure_code(raw_otp)
                 service = str(item.get('service', 'Facebook')).strip()
                 
-                # প্যানেল থেকে আসা ইউনিক আইডি বা ডেটা দিয়ে ফিঙ্গারপ্রিন্ট তৈরি
                 api_id = str(item.get('id', item.get('_id', ''))).strip()
                 if api_id and api_id != '':
                     unique_signature = f"id_{api_id}"
                 else:
                     unique_signature = f"num_{num}_otp_{otp_text}_srv_{service}"
                 
-                # ক্যাশে থাকলে সাথে সাথে বাদ যাবে
                 if unique_signature in sent_otps_cache:
                     continue
                 
-                # নতুন হলে ক্যাশে অ্যাড করা হবে
                 sent_otps_cache.add(unique_signature)
-                
-                # মেমোরি বেশি বড় হওয়া রোধ করতে লিমি트 রাখা ভালো
                 if len(sent_otps_cache) > 1000:
                     sent_otps_cache.pop()
                     
@@ -198,12 +199,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             res1 = requests.get('https://api.zenexnetwork.com/v1/numsuccess/info', headers={'mapikey': PANEL_1_KEY}, timeout=10).json()
             if res1.get('meta', {}).get('code') == 200:
                 for item in res1.get('data', {}).get('otps', [])[:5]:
-                    num = item.get('number')
-                    otp_text = extract_pure_code(item.get('otp', ''))
-                    country = item.get('country', '')
-                    flag, c_code, _ = get_country_info_by_range_or_text(str(num), country)
-                    srv_emoji = get_service_emoji(item.get('service', 'Facebook'))
-                    msg += f"{flag} **{c_code}** {srv_emoji} `+{num}`\n🔑 `{otp_text}`\n-------------------\n"
+                    num = str(item.get('number'))
+                    # এখানেও শুধুমাত্র আপনার নেওয়া নম্বরগুলোর লাইভ ওটিপি দেখাবে
+                    if num in active_user_numbers:
+                        otp_text = extract_pure_code(item.get('otp', ''))
+                        country = item.get('country', '')
+                        flag, c_code, _ = get_country_info_by_range_or_text(num, country)
+                        srv_emoji = get_service_emoji(item.get('service', 'Facebook'))
+                        msg += f"{flag} **{c_code}** {srv_emoji} `+{num}`\n🔑 `{otp_text}`\n-------------------\n"
+            if len(msg) <= 30:
+                msg = "❌ আপনার বর্তমান নেওয়া কোনো নম্বরের লাইভ ওটিপি নেই।"
             await loading_msg.edit_text(msg, parse_mode="Markdown")
         except Exception as e:
             await loading_msg.edit_text(f"এরর: {e}")
@@ -239,10 +244,12 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 ).json()
                 if resp.get('meta', {}).get('code') == 200:
                     num_data = resp.get('data', {})
-                    full_num = num_data.get('full_number')
+                    full_num = str(num_data.get('full_number')).strip()
                     if full_num:
                         assigned_numbers.append(full_num)
-                        _, detected_c_code, _ = get_country_info_by_range_or_text(str(full_num), num_data.get('country', ''))
+                        # বট থেকে নেওয়া নম্বরটিভ লিস্টে যুক্ত করা হচ্ছে যাতে শুধু এটারই ওটিপি আসে
+                        active_user_numbers.add(full_num)
+                        _, detected_c_code, _ = get_country_info_by_range_or_text(full_num, num_data.get('country', ''))
 
             if len(assigned_numbers) > 0:
                 flag, final_c_code, full_country_name = get_country_info_by_range_or_text(range_value, detected_c_code)
@@ -315,8 +322,7 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
     app.add_handler(CallbackQueryHandler(button_click))
     
-    print("Cloud Optimized Bot is running successfully...")
-    # কনফ্লিক্ট এড়াতে এবং ঝুলন্ত আপডেট ড্রপ করতে drop_pending_updates=True ব্যবহার করা হয়েছে
+    print("Filtered OTP Bot is running successfully...")
     app.run_polling(drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
