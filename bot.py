@@ -20,6 +20,7 @@ ADMIN_CHAT_ID = 6470943912
 sent_otps_cache = set()
 number_to_user_map = {}
 user_target_ranges = {}
+user_target_services = {}  # ইউজারের সিলেক্ট করা সার্ভিস জমা রাখার জন্য
 waiting_for_range = {}
 all_bot_users = set()
 
@@ -96,6 +97,10 @@ def get_service_display(service_name, raw_item):
         return "💻 PC Clone"
     elif "instagram" in srv:
         return "📸 Instagram"
+    elif "telegram" in srv:
+        return "✈️ Telegram"
+    elif "whatsapp" in srv:
+        return "💬 WhatsApp"
     else:
         return "📘 FACEBOOK"
 
@@ -138,7 +143,7 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
                     f"━━━━━━━━━━━━━━━━━━━\n"
                     f"🌍 **Country:** {flag} `{c_code}`\n"
                     f"📱 **Number:** `+{num}`\n"
-                    f"📌 **Type:** `{label_text}`\n"
+                    f"📌 **Service:** `{label_text}`\n"
                     f"🔑 **OTP Code:** `{otp_text}`\n"
                     f"━━━━━━━━━━━━━━━━━━━\n"
                     f"⚡ _Status: Successfully Delivered_"
@@ -159,8 +164,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard = [
         [KeyboardButton("📞 Get API Number"), KeyboardButton("⚙️ Set Range")],
-        [KeyboardButton("📱 Get Number"), KeyboardButton("📩 Live OTP Inbox")],
-        [KeyboardButton("👤 Account Profile")]
+        [KeyboardButton("📱 Get Number"), KeyboardButton("🛠️ Select Service")],
+        [KeyboardButton("📩 Live OTP Inbox"), KeyboardButton("👤 Account Profile")]
     ]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
     
@@ -223,13 +228,32 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
+    # সার্ভিস সিলেকশন মেনু দেখানো
+    if text == "🛠️ Select Service":
+        keyboard = [
+            [InlineKeyboardButton("📘 Facebook", callback_data="srv_Facebook"), InlineKeyboardButton("📸 Instagram", callback_data="srv_Instagram")],
+            [InlineKeyboardButton("✈️ Telegram", callback_data="srv_Telegram"), InlineKeyboardButton("💬 WhatsApp", callback_data="srv_WhatsApp")],
+            [InlineKeyboardButton("🌐 All Services (Default)", callback_data="srv_All")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        current_srv = user_target_services.get(chat_id, "All")
+        await update.message.reply_text(
+            f"🛠️ **Select Your Desired Service:**\n"
+            f"📌 Current Selected Service: `{current_srv}`\n\n"
+            f"👇 Click a button below to change:",
+            parse_mode="Markdown",
+            reply_markup=reply_markup
+        )
+        return
+
     if text == "📞 Get API Number":
         if chat_id not in user_target_ranges or not user_target_ranges[chat_id]:
             await update.message.reply_text("Please click '⚙️ Set Range' first to set your target range!", parse_mode="Markdown")
             return
         
         range_value = user_target_ranges[chat_id]
-        loading_msg = await update.message.reply_text(f"🔄 **Fetching API numbers for range `{range_value}`...**", parse_mode="Markdown")
+        selected_service = user_target_services.get(chat_id, "All")
+        loading_msg = await update.message.reply_text(f"🔄 **Fetching API numbers for range `{range_value}` (Service: {selected_service})...**", parse_mode="Markdown")
         
         assigned_numbers = []
         detected_c_code = "MZ"
@@ -254,14 +278,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 flag, final_c_code, full_country_name = get_country_info_by_range_or_text(range_value, detected_c_code)
                 numbers_block = "".join([f"📱 `+{str(num).replace('+', '')}`\n" for num in assigned_numbers])
                 
-                keyboard = [[InlineKeyboardButton("🔄 Change Number", callback_data=f"chg_{range_value}_{final_c_code}")]]
+                keyboard = [[InlineKeyboardButton("🔄 Change Number", callback_data=f"chg_{range_value}_{final_c_code}")] ]
                 reply_markup = InlineKeyboardMarkup(keyboard)
 
                 result_msg = (
                     f"✅ **API NUMBERS SUCCESSFULLY ASSIGNED**\n"
                     f"━━━━━━━━━━━━━━━━━━━\n"
                     f"🌍 **Country:** {flag} **{full_country_name}** (`{final_c_code}`)\n"
-                    f"📌 **Range:** `{range_value}`\n"
+                    f"📌 **Range:** `{range_value}` | **Service:** `{selected_service}`\n"
                     f"⏳ **Status:** `Waiting for incoming OTP...`\n\n"
                     f"{numbers_block}\n"
                     f"━━━━━━━━━━━━━━━━━━━\n"
@@ -325,6 +349,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"👤 **USER PROFILE INFORMATION**\n"
             f"━━━━━━━━━━━━━━━━━━━\n"
             f"🆔 **Telegram ID:** `{chat_id}`\n"
+            f"🛠️ **Preferred Service:** `{user_target_services.get(chat_id, 'All')}`\n"
             f"📊 **Account Status:** `Active / Premium`\n"
             f"━━━━━━━━━━━━━━━━━━━"
         )
@@ -349,10 +374,23 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except:
         pass
 
+    # সার্ভিস সিলেকশন হ্যান্ডলার
+    if data_code.startswith("srv_"):
+        selected_srv = data_code.split("_")[1]
+        user_target_services[chat_id] = selected_srv
+        await query.edit_message_text(
+            f"✅ **Service Successfully Updated!**\n\n"
+            f"📌 Current Target Service: `{selected_srv}`\n"
+            f"Now you can get numbers using this service filter.",
+            parse_mode="Markdown"
+        )
+        return
+
     if data_code.startswith("get3_") or data_code.startswith("chg_"):
         parts = data_code.split("_")
         range_value = parts[1]
         c_code = parts[2] if len(parts) > 2 else "MZ"
+        selected_service = user_target_services.get(chat_id, "All")
         
         await query.edit_message_text(text="🔄 **Fetching new numbers from server pool...**", parse_mode="Markdown")
 
@@ -388,7 +426,7 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     f"✅ **API NUMBERS SUCCESSFULLY ASSIGNED**\n"
                     f"━━━━━━━━━━━━━━━━━━━\n"
                     f"🌍 **Country:** {flag} **{full_country_name}** (`{final_c_code}`)\n"
-                    f"📌 **Range:** `{range_value}`\n"
+                    f"📌 **Range:** `{range_value}` | **Service:** `{selected_service}`\n"
                     f"⏳ **Status:** `Waiting for incoming OTP...`\n\n"
                     f"{numbers_block}\n"
                     f"━━━━━━━━━━━━━━━━━━━\n"
@@ -437,7 +475,6 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     
-    # চেকিং ইন্টারভাল ৫ সেকেন্ড করা হয়েছে যাতে দ্রুত ওটিপি পাওয়া যায়
     app.job_queue.run_repeating(auto_otp_checker, interval=5, first=2)
     
     app.add_handler(CommandHandler("start", start))
