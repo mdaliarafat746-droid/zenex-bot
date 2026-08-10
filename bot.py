@@ -15,13 +15,13 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 
 BOT_TOKEN = "8998738234:AAGpV1zS4miYRC9AxNpSHvJNyWPgkfI9-U4"
 PANEL_1_KEY = "ZNX_5GJKQ6O8MT1F20MSW2G9K4V9"
-ADMIN_CHAT_ID = 6470943912  # আপনার অ্যাডমিন টেলিগ্রাম আইডি (সংখ্যা হিসেবে)
+ADMIN_CHAT_ID = 6470943912  
 
 sent_otps_cache = set()
 number_to_user_map = {}
 user_target_ranges = {}
 waiting_for_range = {}
-all_bot_users = set()  # সকল ইউজারের চ্যাট আইডি জমা রাখার জন্য
+all_bot_users = set()
 
 def extract_pure_code(full_text):
     text = str(full_text).strip()
@@ -101,7 +101,7 @@ def get_service_display(service_name, raw_item):
 
 async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
     try:
-        res1 = requests.get('https://api.zenexnetwork.com/v1/numsuccess/info', headers={'mapikey': PANEL_1_KEY}, timeout=10).json()
+        res1 = requests.get('https://api.zenexnetwork.com/v1/numsuccess/info', headers={'mapikey': PANEL_1_KEY}, timeout=5).json()
         if res1.get('meta', {}).get('code') == 200:
             otps_list = res1.get('data', {}).get('otps', [])
             
@@ -155,7 +155,7 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
-    all_bot_users.add(chat_id)  # ইউজার বট স্টার্ট করলে লিস্টে সেভ হবে
+    all_bot_users.add(chat_id)
 
     keyboard = [
         [KeyboardButton("📞 Get API Number"), KeyboardButton("⚙️ Set Range")],
@@ -171,49 +171,38 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await update.message.reply_text(welcome_text, parse_mode="Markdown", reply_markup=reply_markup)
 
+async def bot_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    if chat_id != ADMIN_CHAT_ID:
+        return
+    total_users = len(all_bot_users)
+    await update.message.reply_text(f"📊 **Total Unique Users:** `{total_users}`", parse_mode="Markdown")
+
 async def broadcast_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
-    
-    # চেক করা হচ্ছে যে কমান্ডটি শুধু অ্যাডমিন দিচ্ছে কিনা
     if chat_id != ADMIN_CHAT_ID:
-        await update.message.reply_text("⛔ You are not authorized to use this command!")
         return
-        
-    # ব্রডকাস্ট মেসেজ টেক্সট বের করা
     message_text = " ".join(context.args)
     if not message_text:
-        await update.message.reply_text("⚠️ Please provide a message to broadcast. Example:\n`/broadcast Hello everyone!`", parse_mode="Markdown")
+        await update.message.reply_text("⚠️ Please provide a message.", parse_mode="Markdown")
         return
-        
-    success_count = 0
-    fail_count = 0
     
-    status_msg = await update.message.reply_text("📢 **Broadcasting message to all users...**", parse_mode="Markdown")
-    
+    status_msg = await update.message.reply_text("📢 **Broadcasting...**", parse_mode="Markdown")
+    success, fail = 0, 0
     for uid in all_bot_users:
         try:
-            await context.bot.send_message(
-                chat_id=uid, 
-                text=f"📢 **ANNOUNCEMENT**\n\n{message_text}", 
-                parse_mode="Markdown"
-            )
-            success_count += 1
-            time.sleep(0.1)  # টেলিগ্রাম ফ্লাড লিমিট এড়াতে ছোট বিরতি
-        except Exception as e:
-            fail_count += 1
-            print(f"Failed to send broadcast to {uid}: {e}")
-            
-    await status_msg.edit_text(
-        f"✅ **Broadcast Completed!**\n\n"
-        f"📨 Successfully sent: `{success_count}` users\n"
-        f"❌ Failed: `{fail_count}` users",
-        parse_mode="Markdown"
-    )
+            await context.bot.send_message(chat_id=uid, text=f"📢 **ANNOUNCEMENT**\n\n{message_text}", parse_mode="Markdown")
+            success += 1
+        except:
+            fail += 1
+    await status_msg.edit_text(f"✅ **Done!** Sent: `{success}`, Failed: `{fail}`", parse_mode="Markdown")
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message or not update.message.text:
+        return
     text = update.message.text.strip()
     chat_id = update.effective_chat.id
-    all_bot_users.add(chat_id)  # ইউজার মেসেজ পাঠালেও লিস্টে সেভ হবে
+    all_bot_users.add(chat_id)
 
     if text == "⚙️ Set Range":
         waiting_for_range[chat_id] = True
@@ -229,7 +218,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_target_ranges[chat_id] = text
         waiting_for_range[chat_id] = False
         await update.message.reply_text(
-            f"✅ **Target Range Successfully Set:** `{text}`\n\nNow click on **'📞 Get API Number'** to fetch numbers from this range.",
+            f"✅ **Target Range Successfully Set:** `{text}`\n\nNow click on **'📞 Get API Number'** to fetch numbers.",
             parse_mode="Markdown"
         )
         return
@@ -246,12 +235,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         detected_c_code = "MZ"
         
         try:
-            for _ in range(3):
+            for _ in range(2):
                 resp = requests.post(
                     'https://api.zenexnetwork.com/v1/getnum',
                     headers={'mapikey': PANEL_1_KEY, 'Content-Type': 'application/json'},
                     json={"range": range_value, "is_national": False, "remove_plus": False},
-                    timeout=10
+                    timeout=5
                 ).json()
                 if resp.get('meta', {}).get('code') == 200:
                     num_data = resp.get('data', {})
@@ -263,15 +252,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             if len(assigned_numbers) > 0:
                 flag, final_c_code, full_country_name = get_country_info_by_range_or_text(range_value, detected_c_code)
+                numbers_block = "".join([f"📱 `+{str(num).replace('+', '')}`\n" for num in assigned_numbers])
                 
-                numbers_block = ""
-                for num in assigned_numbers:
-                    clean_num = str(num).replace("+", "")
-                    numbers_block += f"📱 `+{clean_num}`\n"
-                
-                keyboard = [
-                    [InlineKeyboardButton("🔄 Change Number", callback_data=f"chg_{range_value}_{final_c_code}")]
-                ]
+                keyboard = [[InlineKeyboardButton("🔄 Change Number", callback_data=f"chg_{range_value}_{final_c_code}")]]
                 reply_markup = InlineKeyboardMarkup(keyboard)
 
                 result_msg = (
@@ -287,16 +270,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await loading_msg.edit_text(result_msg, parse_mode="Markdown", reply_markup=reply_markup)
             else:
                 await loading_msg.edit_text(f"❌ **Stock Exhausted:** No numbers available for range `{range_value}` right now.", parse_mode="Markdown")
-                
         except Exception as e:
             await loading_msg.edit_text(f"⚠️ **Gateway Timeout:** Failed to fetch numbers. Error: `{e}`", parse_mode="Markdown")
 
     elif text == "📱 Get Number":
         loading_msg = await update.message.reply_text("🔄 **Fetching active ranges from secure gateway...**", parse_mode="Markdown")
         all_ranges = []
-        
         try:
-            r1 = requests.get('https://api.zenexnetwork.com/v1/active-ranges', headers={'mapikey': PANEL_1_KEY}, timeout=10).json()
+            r1 = requests.get('https://api.zenexnetwork.com/v1/active-ranges', headers={'mapikey': PANEL_1_KEY}, timeout=5).json()
             if r1.get('success') == True:
                 for r in r1.get('data', {}).get('active_ranges', []):
                     r['panel_type'] = 'panel1'
@@ -309,38 +290,28 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             for item in all_ranges[:30]:
                 rng = str(item.get('range', ''))
                 api_country = item.get('country', '')
-                
                 flag, c_code, _ = get_country_info_by_range_or_text(rng, api_country, str(item))
                 srv = str(item.get('service', 'Facebook'))
-                
                 type_label = get_service_display(srv, item)
-                btn_text = f"{flag} {rng} | {type_label}"
-                keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"get3_{rng}_{c_code}")])
+                keyboard.append([InlineKeyboardButton(f"{flag} {rng} | {type_label}", callback_data=f"get3_{rng}_{c_code}")])
             
             keyboard.append([InlineKeyboardButton("❌ Close Menu", callback_data="close_menu")])
             reply_markup = InlineKeyboardMarkup(keyboard)
-            
-            header_text = (
-                f"⚡ **LIVE ACTIVE RANGES**\n"
-                f"📂 **Available Slots:** `{len(all_ranges)}`\n\n"
-                f"👇 _Select your preferred range below:_"
-            )
-            await loading_msg.edit_text(header_text, parse_mode="Markdown", reply_markup=reply_markup)
+            await loading_msg.edit_text(f"⚡ **LIVE ACTIVE RANGES**\n📂 **Available Slots:** `{len(all_ranges)}`\n\n👇 _Select your preferred range below:_", parse_mode="Markdown", reply_markup=reply_markup)
         else:
-            await loading_msg.edit_text("❌ **No active ranges found in the gateway at the moment.**", parse_mode="Markdown")
+            await loading_msg.edit_text("❌ **No active ranges found.**", parse_mode="Markdown")
             
     elif text == "📩 Live OTP Inbox":
         loading_msg = await update.message.reply_text("🔍 **Checking inbox records...**", parse_mode="Markdown")
         try:
             msg = "📥 **Active Inbox Payloads:**\n\n"
-            res1 = requests.get('https://api.zenexnetwork.com/v1/numsuccess/info', headers={'mapikey': PANEL_1_KEY}, timeout=10).json()
+            res1 = requests.get('https://api.zenexnetwork.com/v1/numsuccess/info', headers={'mapikey': PANEL_1_KEY}, timeout=5).json()
             if res1.get('meta', {}).get('code') == 200:
                 for item in res1.get('data', {}).get('otps', [])[:5]:
                     num = str(item.get('number'))
                     if number_to_user_map.get(num) == chat_id:
                         otp_text = extract_pure_code(item.get('otp', ''))
-                        country = item.get('country', '')
-                        flag, c_code, _ = get_country_info_by_range_or_text(num, country)
+                        flag, c_code, _ = get_country_info_by_range_or_text(num, item.get('country', ''))
                         label_text = get_service_display(item.get('service', 'Facebook'), item)
                         msg += f"{flag} `{c_code}` | `+{num}`\n📌 `{label_text}`\n🔑 Code: `{otp_text}`\n──────────────────\n"
             if len(msg) <= 35:
@@ -355,7 +326,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"━━━━━━━━━━━━━━━━━━━\n"
             f"🆔 **Telegram ID:** `{chat_id}`\n"
             f"📊 **Account Status:** `Active / Premium`\n"
-            f"🛡️ **Security Level:** `Encrypted`\n"
             f"━━━━━━━━━━━━━━━━━━━"
         )
         await update.message.reply_text(profile_msg, parse_mode="Markdown")
@@ -374,7 +344,10 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = query.message.chat.id
     all_bot_users.add(chat_id)
 
-    await query.answer()
+    try:
+        await query.answer()
+    except:
+        pass
 
     if data_code.startswith("get3_") or data_code.startswith("chg_"):
         parts = data_code.split("_")
@@ -387,12 +360,12 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
         detected_c_code = c_code
         
         try:
-            for _ in range(3):
+            for _ in range(2):
                 resp = requests.post(
                     'https://api.zenexnetwork.com/v1/getnum',
                     headers={'mapikey': PANEL_1_KEY, 'Content-Type': 'application/json'},
                     json={"range": range_value, "is_national": False, "remove_plus": False},
-                    timeout=10
+                    timeout=5
                 ).json()
                 if resp.get('meta', {}).get('code') == 200:
                     num_data = resp.get('data', {})
@@ -404,20 +377,13 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             if len(assigned_numbers) > 0:
                 flag, final_c_code, full_country_name = get_country_info_by_range_or_text(range_value, detected_c_code)
+                numbers_block = "".join([f"📱 `+{str(num).replace('+', '')}`\n" for num in assigned_numbers])
                 
-                numbers_block = ""
-                for num in assigned_numbers:
-                    clean_num = str(num).replace("+", "")
-                    numbers_block += f"📱 `+{clean_num}`\n"
-                
-                keyboard = [
-                    [InlineKeyboardButton("🔄 Change Number", callback_data=f"chg_{range_value}_{final_c_code}")]
-                ]
+                keyboard = [[InlineKeyboardButton("🔄 Change Number", callback_data=f"chg_{range_value}_{final_c_code}")] ]
                 if data_code.startswith("get3_"):
                     keyboard.append([InlineKeyboardButton("🌐 Back to Country Menu", callback_data="back_to_menu")])
                 
                 reply_markup = InlineKeyboardMarkup(keyboard)
-
                 result_msg = (
                     f"✅ **API NUMBERS SUCCESSFULLY ASSIGNED**\n"
                     f"━━━━━━━━━━━━━━━━━━━\n"
@@ -428,19 +394,17 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     f"━━━━━━━━━━━━━━━━━━━\n"
                     f"💡 _Tap any number above to copy instantly!_"
                 )
-
                 await query.edit_message_text(result_msg, parse_mode="Markdown", reply_markup=reply_markup)
             else:
-                await query.edit_message_text("❌ **Stock Exhausted:** No numbers available for this range right now.", parse_mode="Markdown")
-                
-        except Exception as e:
-            await query.edit_message_text("⚠️ **Gateway Timeout:** Failed to fetch numbers. Please try again.", parse_mode="Markdown")
+                await query.edit_message_text("❌ **Stock Exhausted:** No numbers available.", parse_mode="Markdown")
+        except:
+            await query.edit_message_text("⚠️ **Gateway Timeout:** Failed to fetch numbers.", parse_mode="Markdown")
 
     elif data_code == "back_to_menu":
         try:
             loading_msg = query.message
             all_ranges = []
-            r1 = requests.get('https://api.zenexnetwork.com/v1/active-ranges', headers={'mapikey': PANEL_1_KEY}, timeout=10).json()
+            r1 = requests.get('https://api.zenexnetwork.com/v1/active-ranges', headers={'mapikey': PANEL_1_KEY}, timeout=5).json()
             if r1.get('success') == True:
                 for r in r1.get('data', {}).get('active_ranges', []):
                     r['panel_type'] = 'panel1'
@@ -453,38 +417,36 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     api_country = item.get('country', '')
                     flag, c_code, _ = get_country_info_by_range_or_text(rng, api_country, str(item))
                     srv = str(item.get('service', 'Facebook'))
-                    
                     type_label = get_service_display(srv, item)
-                    btn_text = f"{flag} {rng} | {type_label}"
-                    keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"get3_{rng}_{c_code}")])
+                    keyboard.append([InlineKeyboardButton(f"{flag} {rng} | {type_label}", callback_data=f"get3_{rng}_{c_code}")])
                 
-                keyboard.append([InlineKeyboardButton("❌ Close Menu", callback_data="close_menu")],)
+                keyboard.append([InlineKeyboardButton("❌ Close Menu", callback_data="close_menu")])
                 reply_markup = InlineKeyboardMarkup(keyboard)
-                header_text = (
-                    f"⚡ **LIVE ACTIVE RANGES**\n"
-                    f"📂 **Available Slots:** `{len(all_ranges)}`\n\n"
-                    f"👇 _Select your preferred range below:_"
-                )
-                await loading_msg.edit_text(header_text, parse_mode="Markdown", reply_markup=reply_markup)
+                await loading_msg.edit_text(f"⚡ **LIVE ACTIVE RANGES**\n📂 **Available Slots:** `{len(all_ranges)}`\n\n👇 _Select your preferred range below:_", parse_mode="Markdown", reply_markup=reply_markup)
             else:
                 await loading_msg.edit_text("❌ **No active ranges found.**", parse_mode="Markdown")
         except:
             await query.message.delete()
 
     elif data_code == "close_menu":
-        await query.message.delete()
+        try:
+            await query.message.delete()
+        except:
+            pass
 
 def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     
-    app.job_queue.run_repeating(auto_otp_checker, interval=10, first=3)
+    # চেকিং ইন্টারভাল ৫ সেকেন্ড করা হয়েছে যাতে দ্রুত ওটিপি পাওয়া যায়
+    app.job_queue.run_repeating(auto_otp_checker, interval=5, first=2)
     
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("broadcast", broadcast_message))  # ব্রডকাস্ট কমান্ড হ্যান্ডলার
+    app.add_handler(CommandHandler("stats", bot_stats))
+    app.add_handler(CommandHandler("broadcast", broadcast_message))
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
     app.add_handler(CallbackQueryHandler(button_click))
     
-    print("Bot is running successfully with Broadcast system...")
+    print("Bot is running successfully...")
     app.run_polling(drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
