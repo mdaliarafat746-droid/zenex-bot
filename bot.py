@@ -4,7 +4,7 @@ import json
 import os
 import time
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
-from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, CallbackQueryHandler, MessageHandler, filters
+from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ConversationHandler
 import sys
 import io
 import re
@@ -19,6 +19,10 @@ ADMIN_CHAT_ID = "6470943912"
 
 sent_otps_cache = set()
 number_to_user_map = {}
+user_target_ranges = {}
+
+# Conversation state for setting range
+SETTING_RANGE = 1
 
 def extract_pure_code(full_text):
     text = str(full_text).strip()
@@ -152,6 +156,7 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
+        [KeyboardButton("📞 Get API Number"), KeyboardButton("⚙️ Set Range")],
         [KeyboardButton("📱 Get Number"), KeyboardButton("📩 Live OTP Inbox")],
         [KeyboardButton("👤 Account Profile")]
     ]
@@ -164,11 +169,85 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await update.message.reply_text(welcome_text, parse_mode="Markdown", reply_markup=reply_markup)
 
+async def set_range_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "✍️ Please send or type your target range number (e.g., `261344`):",
+        parse_mode="Markdown"
+    )
+    return SETTING_RANGE
+
+async def set_range_receive(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    range_text = update.message.text.strip()
+    
+    user_target_ranges[chat_id] = range_text
+    await update.message.reply_text(
+        f"✅ **Target Range Successfully Set:** `{range_text}`\n\nNow click on **'Get API Number'** to fetch numbers from this range.",
+        parse_mode="Markdown"
+    )
+    return ConversationHandler.END
+
+async def cancel_setting(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("❌ Cancelled range setup.", parse_mode="Markdown")
+    return ConversationHandler.END
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     chat_id = update.effective_chat.id
 
-    if text == "📱 Get Number":
+    if text == "📞 Get API Number":
+        if chat_id not in user_target_ranges or not user_target_ranges[chat_id]:
+            await update.message.reply_text("Please click 'Set Range' first to set your target range!", parse_mode="Markdown")
+            return
+        
+        range_value = user_target_ranges[chat_id]
+        loading_msg = await update.message.reply_text(f"🔄 **Fetching API numbers for range `{range_value}`...**", parse_mode="Markdown")
+        
+        assigned_numbers = []
+        detected_c_code = "MZ"
+        
+        try:
+            for _ in range(3):
+                resp = requests.post(
+                    'https://api.zenexnetwork.com/v1/getnum',
+                    headers={'mapikey': PANEL_1_KEY, 'Content-Type': 'application/json'},
+                    json={"range": range_value, "is_national": False, "remove_plus": False},
+                    timeout=10
+                ).json()
+                if resp.get('meta', {}).get('code') == 200:
+                    num_data = resp.get('data', {})
+                    full_num = str(num_data.get('full_number')).strip()
+                    if full_num:
+                        assigned_numbers.append(full_num)
+                        number_to_user_map[full_num] = chat_id
+                        _, detected_c_code, _ = get_country_info_by_range_or_text(full_num, num_data.get('country', ''))
+
+            if len(assigned_numbers) > 0:
+                flag, final_c_code, full_country_name = get_country_info_by_range_or_text(range_value, detected_c_code)
+                
+                numbers_block = ""
+                for num in assigned_numbers:
+                    clean_num = str(num).replace("+", "")
+                    numbers_block += f"📱 `+{clean_num}`\n"
+                
+                result_msg = (
+                    f"✅ **API NUMBERS SUCCESSFULLY ASSIGNED**\n"
+                    f"━━━━━━━━━━━━━━━━━━━\n"
+                    f"🌍 **Country:** {flag} **{full_country_name}** (`{final_c_code}`)\n"
+                    f"📌 **Range:** `{range_value}`\n"
+                    f"⏳ **Status:** `Waiting for incoming OTP...`\n\n"
+                    f"{numbers_block}\n"
+                    f"━━━━━━━━━━━━━━━━━━━\n"
+                    f"💡 _Tap any number above to copy instantly!_"
+                )
+                await loading_msg.edit_text(result_msg, parse_mode="Markdown")
+            else:
+                await loading_msg.edit_text(f"❌ **Stock Exhausted:** No numbers available for range `{range_value}` right now.", parse_mode="Markdown")
+                
+        except Exception as e:
+            await loading_msg.edit_text(f"⚠️ **Gateway Timeout:** Failed to fetch numbers. Error: `{e}`", parse_mode="Markdown")
+
+    elif text == "📱 Get Number":
         loading_msg = await update.message.reply_text("🔄 **Fetching active ranges from secure gateway...**", parse_mode="Markdown")
         all_ranges = []
         
@@ -347,11 +426,20 @@ def main():
     
     app.job_queue.run_repeating(auto_otp_checker, interval=10, first=3)
     
+    conv_handler = ConversationHandler(
+        entry_points=[MessageHandler(filters.Regex("^⚙️ Set Range$"), set_range_start)],
+        states={
+            SETTING_RANGE: [MessageHandler(filters.TEXT & (~filters.COMMAND), set_range_receive)]
+        },
+        fallbacks=[CommandHandler("cancel", cancel_setting)]
+    )
+    
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(conv_handler)
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
     app.add_handler(CallbackQueryHandler(button_click))
     
-    print("Bot is running successfully with FACEBOOK label update...")
+    print("Bot is running successfully with 'Get API Number' and 'Set Range' system...")
     app.run_polling(drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
