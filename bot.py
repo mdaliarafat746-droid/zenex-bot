@@ -4,7 +4,7 @@ import json
 import os
 import time
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
-from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ConversationHandler
+from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, CallbackQueryHandler, MessageHandler, filters
 import sys
 import io
 import re
@@ -20,9 +20,7 @@ ADMIN_CHAT_ID = "6470943912"
 sent_otps_cache = set()
 number_to_user_map = {}
 user_target_ranges = {}
-
-# Conversation state for setting range
-SETTING_RANGE = 1
+waiting_for_range = {}
 
 def extract_pure_code(full_text):
     text = str(full_text).strip()
@@ -169,35 +167,32 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await update.message.reply_text(welcome_text, parse_mode="Markdown", reply_markup=reply_markup)
 
-async def set_range_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "✍️ Please send or type your target range number (e.g., `261344`):",
-        parse_mode="Markdown"
-    )
-    return SETTING_RANGE
-
-async def set_range_receive(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = update.effective_chat.id
-    range_text = update.message.text.strip()
-    
-    user_target_ranges[chat_id] = range_text
-    await update.message.reply_text(
-        f"✅ **Target Range Successfully Set:** `{range_text}`\n\nNow click on **'Get API Number'** to fetch numbers from this range.",
-        parse_mode="Markdown"
-    )
-    return ConversationHandler.END
-
-async def cancel_setting(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("❌ Cancelled range setup.", parse_mode="Markdown")
-    return ConversationHandler.END
-
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text
+    text = update.message.text.strip()
     chat_id = update.effective_chat.id
+
+    if text == "⚙️ Set Range":
+        waiting_for_range[chat_id] = True
+        current_set = user_target_ranges.get(chat_id, "None")
+        await update.message.reply_text(
+            f"✍️ Please send or type your target range number now (e.g., `261344`).\n"
+            f"📌 Current Saved Range: `{current_set}`",
+            parse_mode="Markdown"
+        )
+        return
+
+    if waiting_for_range.get(chat_id, False):
+        user_target_ranges[chat_id] = text
+        waiting_for_range[chat_id] = False
+        await update.message.reply_text(
+            f"✅ **Target Range Successfully Set:** `{text}`\n\nNow click on **'📞 Get API Number'** to fetch numbers from this range.",
+            parse_mode="Markdown"
+        )
+        return
 
     if text == "📞 Get API Number":
         if chat_id not in user_target_ranges or not user_target_ranges[chat_id]:
-            await update.message.reply_text("Please click 'Set Range' first to set your target range!", parse_mode="Markdown")
+            await update.message.reply_text("Please click '⚙️ Set Range' first to set your target range!", parse_mode="Markdown")
             return
         
         range_value = user_target_ranges[chat_id]
@@ -426,20 +421,11 @@ def main():
     
     app.job_queue.run_repeating(auto_otp_checker, interval=10, first=3)
     
-    conv_handler = ConversationHandler(
-        entry_points=[MessageHandler(filters.Regex("^⚙️ Set Range$"), set_range_start)],
-        states={
-            SETTING_RANGE: [MessageHandler(filters.TEXT & (~filters.COMMAND), set_range_receive)]
-        },
-        fallbacks=[CommandHandler("cancel", cancel_setting)]
-    )
-    
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(conv_handler)
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
     app.add_handler(CallbackQueryHandler(button_click))
     
-    print("Bot is running successfully with 'Get API Number' and 'Set Range' system...")
+    print("Bot is running successfully with direct range input system...")
     app.run_polling(drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
