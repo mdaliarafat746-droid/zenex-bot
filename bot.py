@@ -15,12 +15,13 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 
 BOT_TOKEN = "8998738234:AAGpV1zS4miYRC9AxNpSHvJNyWPgkfI9-U4"
 PANEL_1_KEY = "ZNX_5GJKQ6O8MT1F20MSW2G9K4V9"
-ADMIN_CHAT_ID = "6470943912"  
+ADMIN_CHAT_ID = 6470943912  # আপনার অ্যাডমিন টেলিগ্রাম আইডি (সংখ্যা হিসেবে)
 
 sent_otps_cache = set()
 number_to_user_map = {}
 user_target_ranges = {}
 waiting_for_range = {}
+all_bot_users = set()  # সকল ইউজারের চ্যাট আইডি জমা রাখার জন্য
 
 def extract_pure_code(full_text):
     text = str(full_text).strip()
@@ -153,6 +154,9 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
         print(f"OTP Checker Error: {e}")
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    all_bot_users.add(chat_id)  # ইউজার বট স্টার্ট করলে লিস্টে সেভ হবে
+
     keyboard = [
         [KeyboardButton("📞 Get API Number"), KeyboardButton("⚙️ Set Range")],
         [KeyboardButton("📱 Get Number"), KeyboardButton("📩 Live OTP Inbox")],
@@ -167,11 +171,50 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await update.message.reply_text(welcome_text, parse_mode="Markdown", reply_markup=reply_markup)
 
+async def broadcast_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    
+    # চেক করা হচ্ছে যে কমান্ডটি শুধু অ্যাডমিন দিচ্ছে কিনা
+    if chat_id != ADMIN_CHAT_ID:
+        await update.message.reply_text("⛔ You are not authorized to use this command!")
+        return
+        
+    # ব্রডকাস্ট মেসেজ টেক্সট বের করা
+    message_text = " ".join(context.args)
+    if not message_text:
+        await update.message.reply_text("⚠️ Please provide a message to broadcast. Example:\n`/broadcast Hello everyone!`", parse_mode="Markdown")
+        return
+        
+    success_count = 0
+    fail_count = 0
+    
+    status_msg = await update.message.reply_text("📢 **Broadcasting message to all users...**", parse_mode="Markdown")
+    
+    for uid in all_bot_users:
+        try:
+            await context.bot.send_message(
+                chat_id=uid, 
+                text=f"📢 **ANNOUNCEMENT**\n\n{message_text}", 
+                parse_mode="Markdown"
+            )
+            success_count += 1
+            time.sleep(0.1)  # টেলিগ্রাম ফ্লাড লিমিট এড়াতে ছোট বিরতি
+        except Exception as e:
+            fail_count += 1
+            print(f"Failed to send broadcast to {uid}: {e}")
+            
+    await status_msg.edit_text(
+        f"✅ **Broadcast Completed!**\n\n"
+        f"📨 Successfully sent: `{success_count}` users\n"
+        f"❌ Failed: `{fail_count}` users",
+        parse_mode="Markdown"
+    )
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     chat_id = update.effective_chat.id
+    all_bot_users.add(chat_id)  # ইউজার মেসেজ পাঠালেও লিস্টে সেভ হবে
 
-    # Check if user clicked Set Range button
     if text == "⚙️ Set Range":
         waiting_for_range[chat_id] = True
         current_set = user_target_ranges.get(chat_id, "None")
@@ -182,7 +225,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # Check if we are waiting for range input from this user
     if waiting_for_range.get(chat_id, False):
         user_target_ranges[chat_id] = text
         waiting_for_range[chat_id] = False
@@ -318,7 +360,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         await update.message.reply_text(profile_msg, parse_mode="Markdown")
     else:
-        # Fallback: If someone types numbers directly without clicking Set Range first, automatically treat it as range!
         if text.isdigit() and len(text) >= 3:
             user_target_ranges[chat_id] = text
             waiting_for_range[chat_id] = False
@@ -331,6 +372,7 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     data_code = query.data
     chat_id = query.message.chat.id
+    all_bot_users.add(chat_id)
 
     await query.answer()
 
@@ -416,7 +458,7 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     btn_text = f"{flag} {rng} | {type_label}"
                     keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"get3_{rng}_{c_code}")])
                 
-                keyboard.append([InlineKeyboardButton("❌ Close Menu", callback_data="close_menu")])
+                keyboard.append([InlineKeyboardButton("❌ Close Menu", callback_data="close_menu")],)
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 header_text = (
                     f"⚡ **LIVE ACTIVE RANGES**\n"
@@ -438,10 +480,11 @@ def main():
     app.job_queue.run_repeating(auto_otp_checker, interval=10, first=3)
     
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("broadcast", broadcast_message))  # ব্রডকাস্ট কমান্ড হ্যান্ডলার
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
     app.add_handler(CallbackQueryHandler(button_click))
     
-    print("Bot is running successfully...")
+    print("Bot is running successfully with Broadcast system...")
     app.run_polling(drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
