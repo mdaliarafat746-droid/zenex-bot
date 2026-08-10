@@ -225,6 +225,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     clean_num = str(num).replace("+", "")
                     numbers_block += f"📱 `+{clean_num}`\n"
                 
+                keyboard = [
+                    [InlineKeyboardButton("🔄 Change Number", callback_data=f"chg_{range_value}_{final_c_code}")]
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+
                 result_msg = (
                     f"✅ **API NUMBERS SUCCESSFULLY ASSIGNED**\n"
                     f"━━━━━━━━━━━━━━━━━━━\n"
@@ -235,7 +240,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     f"━━━━━━━━━━━━━━━━━━━\n"
                     f"💡 _Tap any number above to copy instantly!_"
                 )
-                await loading_msg.edit_text(result_msg, parse_mode="Markdown")
+                await loading_msg.edit_text(result_msg, parse_mode="Markdown", reply_markup=reply_markup)
             else:
                 await loading_msg.edit_text(f"❌ **Stock Exhausted:** No numbers available for range `{range_value}` right now.", parse_mode="Markdown")
                 
@@ -320,12 +325,12 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await query.answer()
 
-    if data_code.startswith("get3_"):
+    if data_code.startswith("get3_") or data_code.startswith("chg_"):
         parts = data_code.split("_")
         range_value = parts[1]
         c_code = parts[2] if len(parts) > 2 else "MZ"
         
-        await query.edit_message_text(text="⚙️ **Allocating numbers from server pool, please wait...**", parse_mode="Markdown")
+        await query.edit_message_text(text="🔄 **Fetching new numbers from server pool...**", parse_mode="Markdown")
 
         assigned_numbers = []
         detected_c_code = c_code
@@ -355,16 +360,18 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     numbers_block += f"📱 `+{clean_num}`\n"
                 
                 keyboard = [
-                    [InlineKeyboardButton("🔄 Refresh / Get New", callback_data=f"get3_{range_value}_{c_code}")],
-                    [InlineKeyboardButton("🌐 Back to Country Menu", callback_data="back_to_menu")]
+                    [InlineKeyboardButton("🔄 Change Number", callback_data=f"chg_{range_value}_{final_c_code}")]
                 ]
+                if data_code.startswith("get3_"):
+                    keyboard.append([InlineKeyboardButton("🌐 Back to Country Menu", callback_data="back_to_menu")])
                 
                 reply_markup = InlineKeyboardMarkup(keyboard)
 
                 result_msg = (
-                    f"✅ **NUMBERS SUCCESSFULLY ASSIGNED**\n"
+                    f"✅ **API NUMBERS SUCCESSFULLY ASSIGNED**\n"
                     f"━━━━━━━━━━━━━━━━━━━\n"
                     f"🌍 **Country:** {flag} **{full_country_name}** (`{final_c_code}`)\n"
+                    f"📌 **Range:** `{range_value}`\n"
                     f"⏳ **Status:** `Waiting for incoming OTP...`\n\n"
                     f"{numbers_block}\n"
                     f"━━━━━━━━━━━━━━━━━━━\n"
@@ -425,7 +432,7 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
     app.add_handler(CallbackQueryHandler(button_click))
     
-    print("Bot is running successfully with direct range input system...")
+    print("Bot is running successfully with 'Change Number' button...")
     app.run_polling(drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
