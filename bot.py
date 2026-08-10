@@ -171,6 +171,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     chat_id = update.effective_chat.id
 
+    # Check if user clicked Set Range button
     if text == "⚙️ Set Range":
         waiting_for_range[chat_id] = True
         current_set = user_target_ranges.get(chat_id, "None")
@@ -181,6 +182,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
+    # Check if we are waiting for range input from this user
     if waiting_for_range.get(chat_id, False):
         user_target_ranges[chat_id] = text
         waiting_for_range[chat_id] = False
@@ -316,7 +318,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         await update.message.reply_text(profile_msg, parse_mode="Markdown")
     else:
-        pass
+        # Fallback: If someone types numbers directly without clicking Set Range first, automatically treat it as range!
+        if text.isdigit() and len(text) >= 3:
+            user_target_ranges[chat_id] = text
+            waiting_for_range[chat_id] = False
+            await update.message.reply_text(
+                f"✅ **Target Range Auto-Saved:** `{text}`\n\nNow click on **'📞 Get API Number'** to fetch numbers.",
+                parse_mode="Markdown"
+            )
 
 async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -432,7 +441,7 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
     app.add_handler(CallbackQueryHandler(button_click))
     
-    print("Bot is running successfully with 'Change Number' button...")
+    print("Bot is running successfully...")
     app.run_polling(drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
