@@ -24,6 +24,9 @@ user_target_services = {}
 waiting_for_range = {}
 all_bot_users = set()
 
+# অটোমেটিক কাউন্ট করার জন্য গ্লোবাল ডিকশনারি
+range_otp_counts = {}
+
 def extract_pure_code(full_text):
     text = str(full_text).strip()
     match = re.search(r'\b\d{4,8}\b', text)
@@ -103,6 +106,7 @@ def get_service_display(service_name, raw_item):
         return "📘 FACEBOOK"
 
 async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
+    global range_otp_counts
     try:
         res1 = requests.get('https://api.zenexnetwork.com/v1/numsuccess/info', headers={'mapikey': PANEL_1_KEY}, timeout=5).json()
         if res1.get('meta', {}).get('code') == 200:
@@ -110,6 +114,12 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
             
             for item in otps_list:
                 num = str(item.get('number')).strip()
+                
+                # অটোমেটিক কাউন্ট করার জন্য নাম্বারের প্রথম ৬ ডিজিট (রেঞ্জ) বের করা হচ্ছে
+                if len(num) >= 6:
+                    detected_range = num[:6]
+                    range_otp_counts[detected_range] = range_otp_counts.get(detected_range, 0) + 1
+
                 if num not in number_to_user_map:
                     continue
                 
@@ -306,16 +316,22 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             print(f"P1 Error: {e}")
         
         if len(all_ranges) > 0:
+            # অটোমেটিক সর্টিং: যে রেঞ্জগুলোতে বেশি ওটিপি এসেছে সেগুলোকে উপরে নিয়ে আসার জন্য লজিক
+            all_ranges.sort(key=lambda x: range_otp_counts.get(str(x.get('range', '')).strip(), 0), reverse=True)
+
+            # টপ ৩টি রেঞ্জকে অটোমেটিক ফায়ার ট্যাগ দেওয়ার জন্য নির্ধারণ করা
+            top_hot_ranges = sorted(range_otp_counts, key=range_otp_counts.get, reverse=True)[:3]
+
             keyboard = []
             for item in all_ranges[:30]:
-                rng = str(item.get('range', ''))
+                rng = str(item.get('range', '')).strip()
                 api_country = item.get('country', '')
                 flag, c_code, _ = get_country_info_by_range_or_text(rng, api_country, str(item))
                 srv = str(item.get('service', 'Facebook'))
                 type_label = get_service_display(srv, item)
                 
-                # যে রেঞ্জগুলোতে সবচেয়ে বেশি কোড আসে (যেমন উদাহরণস্বরূপ নির্দিষ্ট কিছু রেঞ্জ বা হাই-ট্রাফিক রেঞ্জ), সেগুলোর পাশে 🔥 ফায়ার ট্যাগ বসানো হলো
-                fire_tag = " 🔥" if rng in ["261344", "224655", "992778"] else ""
+                # যদি রেঞ্জটি অটোমেটিক টপ লিস্টে থাকে তবে 🔥 দেখাবে
+                fire_tag = " 🔥" if rng in top_hot_ranges and range_otp_counts.get(rng, 0) > 0 else ""
                 
                 keyboard.append([InlineKeyboardButton(f"{flag} {rng}XXX | {type_label}{fire_tag}", callback_data=f"get3_{rng}_{c_code}")])
             
@@ -448,15 +464,18 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     all_ranges.append(r)
             
             if len(all_ranges) > 0:
+                all_ranges.sort(key=lambda x: range_otp_counts.get(str(x.get('range', '')).strip(), 0), reverse=True)
+                top_hot_ranges = sorted(range_otp_counts, key=range_otp_counts.get, reverse=True)[:3]
+
                 keyboard = []
                 for item in all_ranges[:30]:
-                    rng = str(item.get('range', ''))
+                    rng = str(item.get('range', '')).strip()
                     api_country = item.get('country', '')
                     flag, c_code, _ = get_country_info_by_range_or_text(rng, api_country, str(item))
                     srv = str(item.get('service', 'Facebook'))
                     type_label = get_service_display(srv, item)
                     
-                    fire_tag = " 🔥" if rng in ["261344", "224655", "992778"] else ""
+                    fire_tag = " 🔥" if rng in top_hot_ranges and range_otp_counts.get(rng, 0) > 0 else ""
                     keyboard.append([InlineKeyboardButton(f"{flag} {rng}XXX | {type_label}{fire_tag}", callback_data=f"get3_{rng}_{c_code}")])
                 
                 keyboard.append([InlineKeyboardButton("❌ Close Menu", callback_data="close_menu")])
