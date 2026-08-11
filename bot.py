@@ -24,12 +24,10 @@ user_target_services = {}
 waiting_for_range = {}
 all_bot_users = set()
 
-# hot_ranges.txt থেকে রেঞ্জগুলো পড়ার ফাংশন
 def load_hot_ranges():
     if os.path.exists("hot_ranges.txt"):
         try:
             with open("hot_ranges.txt", "r", encoding="utf-8") as f:
-                # রেঞ্জের নাম্বার থেকে শেষের XXX বা স্পেস সরিয়ে শুধু মূল সংখ্যা বা মিল রাখার উপযোগী করা
                 lines = []
                 for line in f:
                     cleaned = line.strip().replace("XXX", "").replace("xxx", "")
@@ -167,8 +165,7 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
                     text=msg_text, 
                     parse_mode="Markdown"
                 )
-                
-    except Exception as e:
+    except:
         pass
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -233,6 +230,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if waiting_for_range.get(chat_id, False):
+        if text.startswith("📞") or text.startswith("📱") or text.startswith("🛠️") or text.startswith("📩") or text.startswith("👤") or text.startswith("⚙️"):
+            waiting_for_range[chat_id] = False
+            await update.message.reply_text("❌ **Range setting cancelled.** Please click buttons normally.", parse_mode="Markdown")
+            return
+
         user_target_ranges[chat_id] = text
         waiting_for_range[chat_id] = False
         await update.message.reply_text(
@@ -264,7 +266,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         range_value = user_target_ranges[chat_id]
         selected_service = user_target_services.get(chat_id, "All")
-        loading_msg = await update.message.reply_text(f"🔄 **Fetching API numbers for range `{range_value}` (Service: {selected_service})...**", parse_mode="Markdown")
+        
+        # স্ক্রিনশটের মতো স্টাইলিশ লোডিং ইফেক্ট
+        loading_msg = await update.message.reply_text("⌛ **Getting number...**", parse_mode="Markdown")
         
         assigned_numbers = []
         detected_c_code = "MZ"
@@ -309,7 +313,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await loading_msg.edit_text(f"⚠️ **Gateway Timeout:** Failed to fetch numbers. Error: `{e}`", parse_mode="Markdown")
 
     elif text == "📱 Get Number":
-        loading_msg = await update.message.reply_text("🔄 **Fetching active ranges from secure gateway...**", parse_mode="Markdown")
+        loading_msg = await update.message.reply_text("⌛ **Getting active ranges...**", parse_mode="Markdown")
         all_ranges = []
         try:
             r1 = requests.get('https://api.zenexnetwork.com/v1/active-ranges', headers={'mapikey': PANEL_1_KEY}, timeout=5).json()
@@ -317,8 +321,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 for r in r1.get('data', {}).get('active_ranges', []):
                     r['panel_type'] = 'panel1'
                     all_ranges.append(r)
-        except Exception as e:
-            print(f"P1 Error: {e}")
+        except:
+            pass
         
         if len(all_ranges) > 0:
             hot_list = load_hot_ranges()
@@ -331,7 +335,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 srv = str(item.get('service', 'Facebook'))
                 type_label = get_service_display(srv, item)
                 
-                # hot_ranges.txt ফাইলের সাথে মিলে গেলে 🔥 দেখাবে
                 fire_tag = ""
                 for hot in hot_list:
                     if rng.startswith(hot) or hot.startswith(rng):
@@ -347,7 +350,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await loading_msg.edit_text("❌ **No active ranges found.**", parse_mode="Markdown")
             
     elif text == "📩 Live OTP Inbox":
-        loading_msg = await update.message.reply_text("🔍 **Checking inbox records...**", parse_mode="Markdown")
+        loading_msg = await update.message.reply_text("⌛ **Checking inbox...**", parse_mode="Markdown")
         try:
             msg = "📥 **Active Inbox Payloads:**\n\n"
             res1 = requests.get('https://api.zenexnetwork.com/v1/numsuccess/info', headers={'mapikey': PANEL_1_KEY}, timeout=5).json()
@@ -412,7 +415,7 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
         c_code = parts[2] if len(parts) > 2 else "MZ"
         selected_service = user_target_services.get(chat_id, "All")
         
-        await query.edit_message_text(text="🔄 **Fetching new numbers from server pool...**", parse_mode="Markdown")
+        await query.edit_message_text(text="⌛ **Getting number...**", parse_mode="Markdown")
 
         assigned_numbers = []
         detected_c_code = c_code
@@ -504,7 +507,6 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     
-    # প্যানেল থেকে ইনস্টانت ওটিপি রিড করার জন্য ইন্টারভাল ১ সেকেন্ড করা হলো
     app.job_queue.run_repeating(auto_otp_checker, interval=1, first=1)
     
     app.add_handler(CommandHandler("start", start))
