@@ -93,7 +93,6 @@ def get_service_display(service_name, raw_item):
     srv = str(service_name).lower()
     raw_item_str = str(raw_item).lower()
     
-    # স্ক্রিনশট অনুযায়ী সঠিক আইকন এবং নাম সেট করা হলো
     if "clone" in raw_item_str or "cl" in raw_item_str or "pc" in raw_item_str:
         return "💻 PC Clone"
     elif "instagram" in srv or "ig" in srv or "insta" in raw_item_str:
@@ -314,7 +313,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 flag, c_code, _ = get_country_info_by_range_or_text(rng, api_country, str(item))
                 srv = str(item.get('service', 'Facebook'))
                 type_label = get_service_display(srv, item)
-                keyboard.append([InlineKeyboardButton(f"{flag} {rng} | {type_label}", callback_data=f"get3_{rng}_{c_code}")])
+                
+                # যে রেঞ্জগুলোতে সবচেয়ে বেশি কোড আসে (যেমন উদাহরণস্বরূপ নির্দিষ্ট কিছু রেঞ্জ বা হাই-ট্রাফিক রেঞ্জ), সেগুলোর পাশে 🔥 ফায়ার ট্যাগ বসানো হলো
+                fire_tag = " 🔥" if rng in ["261344", "224655", "992778"] else ""
+                
+                keyboard.append([InlineKeyboardButton(f"{flag} {rng}XXX | {type_label}{fire_tag}", callback_data=f"get3_{rng}_{c_code}")])
             
             keyboard.append([InlineKeyboardButton("❌ Close Menu", callback_data="close_menu")])
             reply_markup = InlineKeyboardMarkup(keyboard)
@@ -452,7 +455,9 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     flag, c_code, _ = get_country_info_by_range_or_text(rng, api_country, str(item))
                     srv = str(item.get('service', 'Facebook'))
                     type_label = get_service_display(srv, item)
-                    keyboard.append([InlineKeyboardButton(f"{flag} {rng} | {type_label}", callback_data=f"get3_{rng}_{c_code}")])
+                    
+                    fire_tag = " 🔥" if rng in ["261344", "224655", "992778"] else ""
+                    keyboard.append([InlineKeyboardButton(f"{flag} {rng}XXX | {type_label}{fire_tag}", callback_data=f"get3_{rng}_{c_code}")])
                 
                 keyboard.append([InlineKeyboardButton("❌ Close Menu", callback_data="close_menu")])
                 reply_markup = InlineKeyboardMarkup(keyboard)
