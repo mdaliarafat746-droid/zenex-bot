@@ -20,7 +20,7 @@ ADMIN_CHAT_ID = 6470943912
 sent_otps_cache = set()
 number_to_user_map = {}
 user_target_ranges = {}
-user_target_services = {}  # ইউজারের সিলেক্ট করা সার্ভিস জমা রাখার জন্য
+user_target_services = {}
 waiting_for_range = {}
 all_bot_users = set()
 
@@ -93,14 +93,13 @@ def get_service_display(service_name, raw_item):
     srv = str(service_name).lower()
     raw_item_str = str(raw_item).lower()
     
-    if "clone" in raw_item_str or "cl" in raw_item_str:
+    # স্ক্রিনশট অনুযায়ী সঠিক আইকন এবং নাম সেট করা হলো
+    if "clone" in raw_item_str or "cl" in raw_item_str or "pc" in raw_item_str:
         return "💻 PC Clone"
-    elif "instagram" in srv:
+    elif "instagram" in srv or "ig" in srv or "insta" in raw_item_str:
         return "📸 Instagram"
-    elif "telegram" in srv:
-        return "✈️ Telegram"
-    elif "whatsapp" in srv:
-        return "💬 WhatsApp"
+    elif "new" in srv or "newfb" in srv or "new_fb" in raw_item_str:
+        return "📘 New FB"
     else:
         return "📘 FACEBOOK"
 
@@ -228,12 +227,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # সার্ভিস সিলেকশন মেনু দেখানো
     if text == "🛠️ Select Service":
         keyboard = [
-            [InlineKeyboardButton("📘 Facebook", callback_data="srv_Facebook"), InlineKeyboardButton("📸 Instagram", callback_data="srv_Instagram")],
-            [InlineKeyboardButton("✈️ Telegram", callback_data="srv_Telegram"), InlineKeyboardButton("💬 WhatsApp", callback_data="srv_WhatsApp")],
-            [InlineKeyboardButton("🌐 All Services (Default)", callback_data="srv_All")]
+            [InlineKeyboardButton("📘 New FB", callback_data="srv_NewFB"), InlineKeyboardButton("📸 Instagram", callback_data="srv_Instagram")],
+            [InlineKeyboardButton("💻 PC Clone", callback_data="srv_PCClone"), InlineKeyboardButton("🌐 All Services", callback_data="srv_All")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         current_srv = user_target_services.get(chat_id, "All")
@@ -374,7 +371,6 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except:
         pass
 
-    # সার্ভিস সিলেকশন হ্যান্ডলার
     if data_code.startswith("srv_"):
         selected_srv = data_code.split("_")[1]
         user_target_services[chat_id] = selected_srv
