@@ -21,11 +21,9 @@ def extract_pure_code(full_text):
     match = re.search(r'\b\d{4,8}\b', text)
     return match.group(0) if match else text
 
-# অটোমেটিক যেকোনো দেশের কান্ট্রি কোড থেকে ফ্ল্যাগ ও শর্ট নাম ডিটেক্ট করার ফাংশন
 def get_auto_country_info(number_str):
     clean_num = re.sub(r'\D', '', str(number_str))
     
-    # কান্ট্রি কোড ম্যাপিং (প্রয়োজন অনুযায়ী আরও যুক্ত করা যাবে)
     country_map = [
         ("374", "🇦🇲", "ARMENIA", "AM"),
         ("261", "🇲🇬", "MADAGASCAR", "MG"),
@@ -48,7 +46,6 @@ def get_auto_country_info(number_str):
         if clean_num.startswith(prefix):
             return flag, f"{name} ({short})"
             
-    # যদি লিস্টে না থাকে তবে প্রথম ৩ বা ২ ডিজিট দিয়ে ডিফল্ট ফরম্যাট তৈরি করবে
     if len(clean_num) >= 3:
         return "🌍", f"INT (+{clean_num[:3]})"
     return "🌍", "INTERNATIONAL"
@@ -136,6 +133,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             
             resp_json = resp.json()
+            print("API Response:", resp_json)
             
             if resp_json.get('meta', {}).get('code') == 200:
                 data_obj = resp_json.get('data', {})
@@ -167,6 +165,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 err_msg = resp_json.get('meta', {}).get('message', 'Stock Exhausted or API Error.')
                 await loading_msg.edit_text(f"❌ {err_msg}", parse_mode="Markdown")
         except Exception as e:
+            print("Error:", e)
             await loading_msg.edit_text("⚠️ Error connecting to API server.", parse_mode="Markdown")
 
 def main():
