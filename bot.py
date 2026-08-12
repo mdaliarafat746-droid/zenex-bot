@@ -49,16 +49,14 @@ def get_country_info_by_range_or_text(range_str, country_field, raw_text=""):
     c_field = str(country_field).strip().upper()
     r_str = str(range_str).strip().replace("+", "")
     
-    # যদি প্যানেল থেকে সরাসরি ২ অক্ষরের শর্ট কোড দেয় (যেমন: BD, IN, US, PK, ID ইত্যাদি)
+    # যদি প্যানেল থেকে সরাসরি ২ অক্ষরের শর্ট কোড দেয় (যেমন: AM, BD, IN ইত্যাদি)
     if len(c_field) == 2 and c_field.isalpha():
-        # অটোমেটিক যেকোনো ISO 2-letter কোড থেকে ফ্ল্যাগ ইমোজি তৈরি
         flag = ''.join([chr(ord(char) + 127397) for char in c_field])
         return flag, c_field, c_field
         
-    # যদি কান্ট্রি ফিল্ড না থাকে, তবে ফোন নাম্বারের প্রিফিক্স থেকে আন্দাজ করে অটো ফ্ল্যাগ ও শর্ট কোড বের করা
-    # কিছু কমন প্রিফিক্স ম্যাপিং যা অটোমেটিক কাজ করবে
+    # প্রিফিক্স ভিত্তিক অটোম্যাপ (এখানে আর্মেনিয়ার 374 সহ অন্যান্য কোড যুক্ত আছে)
     prefix_to_iso = {
-        "880": "BD", "91": "IN", "1": "US", "44": "GB", "7": "RU", 
+        "374": "AM", "880": "BD", "91": "IN", "1": "US", "44": "GB", "7": "RU", 
         "992": "TJ", "261": "MG", "380": "UA", "224": "GN", "228": "TG", 
         "237": "CM", "225": "CI", "236": "CF", "229": "BJ", "60": "MY", 
         "212": "MA", "249": "SD", "255": "TZ", "263": "ZW", "213": "DZ", 
@@ -193,7 +191,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         waiting_for_range[chat_id] = True
         current_set = user_target_ranges.get(chat_id, "None")
         await update.message.reply_text(
-            f"✍️ Please send or type your target range number now (e.g., `261344`).\n"
+            f"✍️ Please send or type your target range number now (e.g., `374`).\n"
             f"📌 Current Saved Range: `{current_set}`",
             parse_mode="Markdown"
         )
