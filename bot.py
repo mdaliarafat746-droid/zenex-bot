@@ -56,74 +56,80 @@ def get_country_info_by_range_or_text(range_str, country_field, raw_text=""):
     else:
         return "🌍", "TG"
 
-# অটো ওটিপি চেকার (সরাসরি আপনার গ্রুপে পাঠাবে)
+# অটো ওটিপি চেকার (গ্রুপে ওটিপি পাঠানোর জন্য)
 async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
     try:
-        res1 = requests.get('https://api.zenexnetwork.com/v1/numsuccess/info', headers={'mapikey': PANEL_1_KEY}, timeout=3).json()
-        if res1.get('meta', {}).get('code') == 200:
-            otps_list = res1.get('data', {}).get('otps', [])
-            
-            for item in otps_list:
-                num = str(item.get('number')).strip()
-                raw_otp = str(item.get('otp', '')).strip()
-                if not raw_otp:
-                    continue
+        response = requests.get('https://api.zenexnetwork.com/v1/numsuccess/info', headers={'mapikey': PANEL_1_KEY}, timeout=5)
+        if response.status_code == 200:
+            res1 = response.json()
+            if res1.get('meta', {}).get('code') == 200:
+                otps_list = res1.get('data', {}).get('otps', [])
+                
+                for item in otps_list:
+                    num = str(item.get('number')).strip()
+                    raw_otp = str(item.get('otp', '')).strip()
+                    if not raw_otp:
+                        continue
+                        
+                    otp_text = extract_pure_code(raw_otp)
+                    service = str(item.get('service', 'Facebook')).strip()
                     
-                otp_text = extract_pure_code(raw_otp)
-                service = str(item.get('service', 'Facebook')).strip()
-                
-                api_id = str(item.get('id', item.get('_id', ''))).strip()
-                if api_id and api_id != '':
-                    unique_signature = f"id_{api_id}"
-                else:
-                    unique_signature = f"num_{num}_otp_{otp_text}_srv_{service}"
-                
-                if unique_signature in sent_otps_cache:
-                    continue
-                
-                sent_otps_cache.add(unique_signature)
-                if len(sent_otps_cache) > 1000:
-                    sent_otps_cache.pop()
+                    api_id = str(item.get('id', item.get('_id', ''))).strip()
+                    if api_id and api_id != '':
+                        unique_signature = f"id_{api_id}"
+                    else:
+                        unique_signature = f"num_{num}_otp_{otp_text}_srv_{service}"
                     
-                country = item.get('country', 'TOGO')
-                flag, c_code = get_country_info_by_range_or_text(num, country)
-                
-                masked_num = num[:-2] + "**" if len(num) > 2 else num
-                
-                msg_text = (
-                    f"<b>FAST SMS OTP x TNE</b>                                      <i>admin</i>\n"
-                    f"{flag} <b>{c_code}</b> | 📱 <code>{masked_num}</code> | 🟢 <i>{service}</i>"
-                )
-                
-                keyboard = [
-                    [
-                        InlineKeyboardButton("📢 Channel", url="https://t.me/your_channel_link"),
-                        InlineKeyboardButton(f"🔑 {otp_text}", callback_data="dummy_otp")
-                    ],
-                    [
-                        InlineKeyboardButton("📞 Get Number", callback_data="get_new_number_action")
+                    if unique_signature in sent_otps_cache:
+                        continue
+                    
+                    sent_otps_cache.add(unique_signature)
+                    if len(sent_otps_cache) > 1000:
+                        sent_otps_cache.pop()
+                        
+                    country = item.get('country', 'TOGO')
+                    flag, c_code = get_country_info_by_range_or_text(num, country)
+                    
+                    masked_num = num[:-2] + "**" if len(num) > 2 else num
+                    
+                    msg_text = (
+                        f"<b>FAST SMS OTP x TNE</b>                                      <i>admin</i>\n"
+                        f"{flag} <b>{c_code}</b> | 📱 <code>{masked_num}</code> | 🟢 <i>{service}</i>"
+                    )
+                    
+                    keyboard = [
+                        [
+                            InlineKeyboardButton("📢 Channel", url="https://t.me/your_channel_link"),
+                            InlineKeyboardButton(f"🔑 {otp_text}", callback_data="dummy_otp")
+                        ],
+                        [
+                            InlineKeyboardButton("📞 Get Number", callback_data="get_new_number_action")
+                        ]
                     ]
-                ]
-                reply_markup = InlineKeyboardMarkup(keyboard)
-                
-                await context.bot.send_message(
-                    chat_id=TARGET_GROUP_CHAT_ID, 
-                    text=msg_text, 
-                    parse_mode="HTML",
-                    reply_markup=reply_markup
-                )
+                    reply_markup = InlineKeyboardMarkup(keyboard)
+                    
+                    try:
+                        await context.bot.send_message(
+                            chat_id=TARGET_GROUP_CHAT_ID, 
+                            text=msg_text, 
+                            parse_mode="HTML",
+                            reply_markup=reply_markup
+                        )
+                    except Exception as telegram_err:
+                        print("Telegram Send Error:", telegram_err)
     except Exception as e:
-        print("Error in auto_otp_checker:", e)
+        print("API Fetch Error:", e)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # শুধু পার্সোনাল চ্যাটে কাজ করবে
     if update.effective_chat.type != "private":
         return
 
-    # এখানে স্ক্রিনশটের মতো 'GET NUMBER' এবং 'LIVE TRAFFIC' বাটন যুক্ত করা হয়েছে
     keyboard = [
         [KeyboardButton("📞 Get API Number"), KeyboardButton("⚙️ Set Range")],
-        [KeyboardButton("📱 GET NUMBER"), KeyboardButton("🔴 LIVE TRAFFIC")],
-        [KeyboardButton("🛠️ Select Service"), KeyboardButton("👤 Account Profile")]
+        [KeyboardButton("📱 Get Number"), KeyboardButton("🔴 LIVE TRAFFIC")],
+        [KeyboardButton("🛠️ Select Service"), KeyboardButton("👤 Account Profile")],
+        [KeyboardButton("📩 Live OTP Inbox")]
     ]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
     
@@ -132,7 +138,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"✨ Fast, secure, and reliable virtual number & OTP management service.\n"
         f"📌 Please choose an option from the menu below to get started:"
     )
-    await update.message.reply_text(welcome_text, parse_mode="Markdown", reply_markup=reply_markup)
+    try:
+        await update.message.reply_text(welcome_text, parse_mode="Markdown", reply_markup=reply_markup)
+    except Exception as e:
+        print("Start Error:", e)
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.text:
@@ -142,7 +151,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text = update.message.text.strip()
 
-    # যদি কেউ '🔴 LIVE TRAFFIC' বাটনে ক্লিক করে
     if text == "🔴 LIVE TRAFFIC":
         traffic_text = (
             "<b>🔴LIVE Live Traffic (Last 1 Hours)</b>\n\n"
@@ -150,13 +158,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "⬛ <b>TikTok</b> | 🇳🇴 <b>Norway</b> | <code>32.0%</code>\n"
             "📘 <b>FACEBOOK</b> | 🇹🇿 <b>Tanzania</b> | <code>24.0%</code>"
         )
-        await update.message.reply_text(traffic_text, parse_mode="HTML")
+        try:
+            await update.message.reply_text(traffic_text, parse_mode="HTML")
+        except:
+            pass
         return
 
-    if text == "📱 GET NUMBER" or text == "📱 Get Number" or text == "📞 Get API Number":
-        loading_msg = await update.message.reply_text("⌛ **Fetching numbers from panel...**", parse_mode="Markdown")
-        
+    if "Get Number" in text or text == "📞 Get API Number":
         try:
+            loading_msg = await update.message.reply_text("⌛ **Fetching numbers from panel...**", parse_mode="Markdown")
+            
             resp = requests.post(
                 'https://api.zenexnetwork.com/v1/getnum',
                 headers={'mapikey': PANEL_1_KEY, 'Content-Type': 'application/json'},
@@ -194,7 +205,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             else:
                 await loading_msg.edit_text("❌ Stock Exhausted or API Error.", parse_mode="Markdown")
         except Exception as e:
-            await loading_msg.edit_text(f"⚠️ Error: {str(e)}", parse_mode="Markdown")
+            try:
+                await update.message.reply_text(f"⚠️ Error occurred while fetching number.", parse_mode="Markdown")
+            except:
+                pass
 
 async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -205,7 +219,7 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
-    app.job_queue.run_repeating(auto_otp_checker, interval=1, first=1)
+    app.job_queue.run_repeating(auto_otp_checker, interval=3, first=1)
     
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
