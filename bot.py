@@ -46,52 +46,62 @@ def extract_pure_code(full_text):
     return text
 
 def get_country_info_by_range_or_text(range_str, country_field, raw_text=""):
-    r_str = str(range_str).strip().replace("+", "")
-    c_field = str(country_field).strip().upper()
+    r_str = str(range_str)
+    c_field = str(country_field).lower()
+    combined = f"{r_str} {c_field} {str(raw_text).lower()}".strip()
     
-    if not c_field or len(c_field) > 3:
-        c_field = "INT"
-
-    # কমন কান্ট্রি কোড ও ফ্ল্যাগের অটোম্যাপ ডিকশনারি
-    prefix_map = {
-        "880": ("🇧🇩", "BD", "BANGLADESH"),
-        ""374": ("AM", "AM", "Armenia"),": ("AM", "AM", "Armenia"),
-        "91":  ("🇮🇳", "IN", "INDIA"),
-        "1":   ("🇺🇸", "US", "UNITED STATES"),
-        "44":  ("🇬🇧", "GB", "UNITED KINGDOM"),
-        "7":   ("🇷🇺", "RU", "RUSSIA"),
-        "992": ("🇹🇯", "TJ", "TAJIKISTAN"),
-        "261": ("🇲🇬", "MG", "MADAGASCAR"),
-        "380": ("🇺🇦", "UA", "UKRAINE"),
-        "224": ("🇬🇳", "GN", "GUINEA"),
-        "228": ("🇹🇬", "TG", "TOGO"),
-        "237": ("🇨🇲", "CM", "CAMEROON"),
-        "225": ("🇨🇮", "CI", "IVORY COAST"),
-        "236": ("🇨🇫", "CF", "CENTRAL AFRICA"),
-        "229": ("🇧🇯", "BJ", "BENIN"),
-        "60":  ("🇲🇾", "MY", "MALAYSIA"),
-        "212": ("🇲🇦", "MA", "MOROCCO"),
-        "249": ("🇸🇩", "SD", "SUDAN"),
-        "255": ("🇹🇿", "TZ", "TANZANIA"),
-        "263": ("🇿🇼", "ZW", "ZIMBABWE"),
-        "213": ("🇩🇿", "DZ", "ALGERIA"),
-        "591": ("🇧🇴", "BO", "BOLIVIA"),
-        "20":  ("🇪🇬", "EG", "EGYPT"),
-        "233": ("🇬🇭", "GH", "GHANA"),
-        "55":  ("🇧🇷", "BR", "BRAZIL")
-    }
-    
-    # প্রথমে প্রিফিক্স দিয়ে খোঁজা
-    for prefix, (flag, code, name) in sorted(prefix_map.items(), key=lambda x: len(x[0]), reverse=True):
-        if r_str.startswith(prefix):
-            return flag, code, name
-            
-    # যদি প্যানেল থেকে সরাসরি শর্ট কোড দেয় (যেমন: MG, TZ)
-    if len(c_field) == 2 and c_field.isalpha():
-        flag = ''.join([chr(ord(char) + 127397) for char in c_field])
-        return flag, c_field, c_field
-        
-    return "🌍", c_field if c_field else "INT", "INTERNATIONAL"
+    if r_str.startswith("992") or "tajikistan" in combined or "tj" in c_field:
+        return "🇹🇯", "TJ", "TAJIKISTAN"
+    elif r_str.startswith("261") or "madagascar" in combined or "mg" in c_field:
+        return "🇲🇬", "MG", "MADAGASCAR"
+    elif r_str.startswith("380") or "ukraine" in combined or "ua" in c_field:
+        return "🇺🇦", "UA", "UKRAINE"
+    elif r_str.startswith("224") or "guinea" in combined or "gn" in c_field:
+        return "🇬🇳", "GN", "GUINEA"
+    elif r_str.startswith("228") or "togo" in combined or "tg" in c_field:
+        return "🇹🇬", "TG", "TOGO"
+    elif r_str.startswith("237") or "cameroon" in combined or "cm" in c_field:
+        return "🇨🇲", "CM", "CAMEROON"
+    elif r_str.startswith("225") or "ivory" in combined or "ci" in c_field or "côte" in combined:
+        return "🇨🇮", "CI", "IVORY COAST"
+    elif r_str.startswith("880") or "bangladesh" in combined or "bd" in c_field:
+        return "🇧🇩", "BD", "BANGLADESH"
+    elif r_str.startswith("236") or "central africa" in combined or "cf" in c_field:
+        return "🇨🇫", "CF", "CENTRAL AFRICA"
+    elif r_str.startswith("229") or "benin" in combined or "bj" in c_field:
+        return "🇧🇯", "BJ", "BENIN"
+    elif "malaysia" in combined or "my" in c_field:
+        return "🇲🇾", "MY", "MALAYSIA"
+    elif "morocco" in combined or "ma" in c_field:
+        return "🇲🇦", "MA", "MOROCCO"
+    elif "russia" in combined or "ru" in c_field:
+        return "🇷🇺", "RU", "RUSSIA"
+    elif "united kingdom" in combined or "uk" in combined or "gb" in c_field:
+        return "🇬🇧", "GB", "UNITED KINGDOM"
+    elif "sudan" in combined or "sd" in c_field:
+        return "🇸🇩", "SD", "SUDAN"
+    elif "tanzania" in combined or "tz" in c_field:
+        return "🇹🇿", "TZ", "TANZANIA"
+    elif "zimbabwe" in combined or "zw" in c_field:
+        return "🇿🇼", "ZW", "ZIMBABWE"
+    elif "algeria" in combined or "dz" in c_field:
+        return "🇩🇿", "DZ", "ALGERIA"
+    elif "bolivia" in combined or "bo" in c_field:
+        return "🇧🇴", "BO", "BOLIVIA"
+    elif "egypt" in combined or "eg" in c_field:
+        return "🇪🇬", "EG", "EGYPT"
+    elif "india" in combined or "in" in c_field:
+        return "🇮🇳", "IN", "INDIA"
+    elif "ghana" in combined or "gh" in c_field:
+        return "🇬🇭", "GH", "GHANA"
+    elif "brazil" in combined or "br" in c_field:
+        return "🇧🇷", "BR", "BRAZIL"
+    else:
+        if r_str.startswith("236"):
+            return "🇨🇫", "CF", "CENTRAL AFRICA"
+        elif r_str.startswith("229"):
+            return "🇧🇯", "BJ", "BENIN"
+        return "🌍", "MZ", "MOZAMBIQUE"
 
 def get_service_display(service_name, raw_item):
     srv = str(service_name).lower()
@@ -257,6 +267,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         range_value = user_target_ranges[chat_id]
         selected_service = user_target_services.get(chat_id, "All")
         
+        # স্ক্রিনশটের মতো স্টাইলিশ লোডিং ইফেক্ট
         loading_msg = await update.message.reply_text("⌛ **Getting number...**", parse_mode="Markdown")
         
         assigned_numbers = []
