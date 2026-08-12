@@ -10,7 +10,6 @@ from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, Messa
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8') if 'io' in globals() else sys.stdout
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
-# আপনার নতুন টোকেন এখানে বসানো হলো
 BOT_TOKEN = "8998738234:AAGpV1zS4miYRC9AxNpSHvJNyWPgkfI9-U4"
 PANEL_1_KEY = "ZNX_5GJKQ6O8MT1F20MSW2G9K4V9"
 TARGET_GROUP_CHAT_ID = -1005155008461
@@ -22,7 +21,6 @@ def extract_pure_code(full_text):
     match = re.search(r'\b\d{4,8}\b', text)
     return match.group(0) if match else text
 
-# সঠিক কান্ট্রি ফ্ল্যাগ এবং নাম ডিটেক্ট করার ফাংশন
 def get_country_info_by_range_or_text(range_str, country_field, raw_text=""):
     r_str = str(range_str).strip()
     c_field = str(country_field).lower()
@@ -129,10 +127,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if "Get Number" in text or text == "📞 Get API Number":
         loading_msg = await update.message.reply_text("⌛ **Fetching numbers from panel...**", parse_mode="Markdown")
         try:
+            # প্যানেল থেকে যেকোনো ওপেন স্টক বা ডিফল্ট নম্বর আনার চেষ্টা করা হচ্ছে
             resp = requests.post(
                 'https://api.zenexnetwork.com/v1/getnum',
                 headers={'mapikey': PANEL_1_KEY, 'Content-Type': 'application/json'},
-                json={"range": "374", "is_national": False, "remove_plus": False},
+                json={"is_national": False, "remove_plus": False},
                 timeout=5
             ).json()
             
@@ -155,18 +154,18 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     result_msg = (
                         f"✅ **API NUMBERS SUCCESSFULLY ASSIGNED**\n\n"
                         f"🌍 Country: {flag} `{c_name}`\n"
-                        f"📌 Range: `374XXXXXX` | Service: `All`\n"
-                        f"⏳ Status: `Waiting for incoming OTP...`\n\n"
+                        f"📌 Status: `Waiting for incoming OTP...`\n\n"
                         f"{num_lines}\n\n"
                         f"💡 *Tap any number above to copy instantly!*"
                     )
                     await loading_msg.edit_text(result_msg, parse_mode="Markdown")
                 else:
-                    await loading_msg.edit_text("❌ No numbers found.", parse_mode="Markdown")
+                    await loading_msg.edit_text("❌ No numbers found in panel stock.", parse_mode="Markdown")
             else:
-                await loading_msg.edit_text("❌ Stock Exhausted or API Error.", parse_mode="Markdown")
+                err_msg = resp.get('meta', {}).get('message', 'Stock Exhausted or API Error.')
+                await loading_msg.edit_text(f"❌ {err_msg}", parse_mode="Markdown")
         except Exception as e:
-            await loading_msg.edit_text("⚠️ Error connecting to API.", parse_mode="Markdown")
+            await loading_msg.edit_text("⚠️ Error connecting to API server.", parse_mode="Markdown")
 
 def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
