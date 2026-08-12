@@ -114,7 +114,6 @@ def get_service_display(service_name, raw_item):
     elif "new" in srv or "newfb" in srv or "new_fb" in raw_item_str:
         return "📘 New FB"
     else:
-        return "📘 FACEBOOK"
 
 async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
     try:
