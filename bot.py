@@ -127,16 +127,19 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if "Get Number" in text or text == "📞 Get API Number":
         loading_msg = await update.message.reply_text("⌛ **Fetching numbers from panel...**", parse_mode="Markdown")
         try:
-            # প্যানেল থেকে যেকোনো ওপেন স্টক বা ডিফল্ট নম্বর আনার চেষ্টা করা হচ্ছে
+            # প্যানেল এপিআই কল করার সময় ব্ল্যাঙ্ক বডি অথবা রেঞ্জ দিয়ে ট্রাই করা হচ্ছে
             resp = requests.post(
                 'https://api.zenexnetwork.com/v1/getnum',
                 headers={'mapikey': PANEL_1_KEY, 'Content-Type': 'application/json'},
-                json={"is_national": False, "remove_plus": False},
+                json={},
                 timeout=5
-            ).json()
+            )
             
-            if resp.get('meta', {}).get('code') == 200:
-                data_obj = resp.get('data', {})
+            print("API Raw Response:", resp.text) # রেলওয়ে কনসোলে আসল রেসপন্স দেখার জন্য
+            resp_json = resp.json()
+            
+            if resp_json.get('meta', {}).get('code') == 200:
+                data_obj = resp_json.get('data', {})
                 nums = data_obj.get('numbers', [])
                 full_num = data_obj.get('full_number')
                 
@@ -154,7 +157,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     result_msg = (
                         f"✅ **API NUMBERS SUCCESSFULLY ASSIGNED**\n\n"
                         f"🌍 Country: {flag} `{c_name}`\n"
-                        f"📌 Status: `Waiting for incoming OTP...`\n\n"
+                        f"⏳ Status: `Waiting for incoming OTP...`\n\n"
                         f"{num_lines}\n\n"
                         f"💡 *Tap any number above to copy instantly!*"
                     )
@@ -162,9 +165,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 else:
                     await loading_msg.edit_text("❌ No numbers found in panel stock.", parse_mode="Markdown")
             else:
-                err_msg = resp.get('meta', {}).get('message', 'Stock Exhausted or API Error.')
+                err_msg = resp_json.get('meta', {}).get('message', 'Stock Exhausted or API Error.')
                 await loading_msg.edit_text(f"❌ {err_msg}", parse_mode="Markdown")
         except Exception as e:
+            print("GetNum Exception:", e)
             await loading_msg.edit_text("⚠️ Error connecting to API server.", parse_mode="Markdown")
 
 def main():
