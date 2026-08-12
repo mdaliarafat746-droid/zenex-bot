@@ -55,6 +55,7 @@ def get_country_info_by_range_or_text(range_str, country_field, raw_text=""):
     # কমন কান্ট্রি কোড ও ফ্ল্যাগের অটোম্যাপ ডিকশনারি
     prefix_map = {
         "880": ("🇧🇩", "BD", "BANGLADESH"),
+        ""374": ("AM", "AM", "Armenia"),": ("AM", "AM", "Armenia"),
         "91":  ("🇮🇳", "IN", "INDIA"),
         "1":   ("🇺🇸", "US", "UNITED STATES"),
         "44":  ("🇬🇧", "GB", "UNITED KINGDOM"),
