@@ -10,7 +10,8 @@ from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, Messa
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8') if 'io' in globals() else sys.stdout
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
-BOT_TOKEN = "8807397397:AAHa3vHLOeyMnc5Y2JditjN9OKZnxmLzLMM"
+# আপনার নতুন টোকেন এখানে বসানো হলো
+BOT_TOKEN = "8998738234:AAGpV1zS4miYRC9AxNpSHvJNyWPgkfI9-U4"
 PANEL_1_KEY = "ZNX_5GJKQ6O8MT1F20MSW2G9K4V9"
 TARGET_GROUP_CHAT_ID = -1005155008461
 
@@ -21,7 +22,7 @@ def extract_pure_code(full_text):
     match = re.search(r'\b\d{4,8}\b', text)
     return match.group(0) if match else text
 
-# সঠিক কান্ট্রি ফ্ল্যাগ এবং কোড সেট করার ফাংশন
+# সঠিক কান্ট্রি ফ্ল্যাগ এবং নাম ডিটেক্ট করার ফাংশন
 def get_country_info_by_range_or_text(range_str, country_field, raw_text=""):
     r_str = str(range_str).strip()
     c_field = str(country_field).lower()
