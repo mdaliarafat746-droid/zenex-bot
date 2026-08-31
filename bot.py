@@ -62,7 +62,8 @@ def get_country_info_by_range_or_text(range_str, country_field, raw_text=""):
         "237": "CM", "225": "CI", "236": "CF", "229": "BJ", "60": "MY", 
         "212": "MA", "249": "SD", "255": "TZ", "263": "ZW", "213": "DZ", 
         "591": "BO", "20": "EG", "233": "GH", "55": "BR", "92": "PK",
-        "62": "ID", "84": "VN", "63": "PH", "90": "TR", "98": "IR", "977": "NP"
+        "62": "ID", "84": "VN", "63": "PH", "90": "TR", "98": "IR", "977": "NP",
+        "382": "ME"
     }
     
     for prefix, iso in sorted(prefix_to_iso.items(), key=lambda x: len(x[0]), reverse=True):
@@ -188,7 +189,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # স্ক্রিনশটের স্টাইলে ফেসবুকের কান্ট্রি লিস্ট দেখানোর অংশ
+    # ত্রুটি সংশোধন করা ফেসবুক লাইভ ট্রাফিক লজিক
     if text == "📊 Live Traffic":
         loading_msg = await update.message.reply_text("⌛ **Loading Facebook Live Traffic...**", parse_mode="Markdown")
         try:
@@ -201,22 +202,26 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     sid = str(s_item.get('sid', '')).strip().upper()
                     if sid == "FACEBOOK":
                         ranges = s_item.get('ranges', [])
-                        # কান্ট্রি অনুযায়ী রেঞ্জ বা কাউন্ট গ্রুপ করা
-                        country_counts = {}
+                        country_groups = {}
+                        
                         for r_raw in ranges:
                             r_str = str(r_raw).replace("XXX", "").replace("xxx", "").strip()
                             flag, c_code, full_name = get_country_info_by_range_or_text(r_str, "")
-                            display_name = f"{full_name} ({c_code})"
-                            country_counts[display_name] = country_counts.get(display_name, 0) + 1
+                            display_name = f"{flag} {full_name} ({c_code})"
+                            
+                            if display_name not in country_groups:
+                                country_groups[display_name] = []
+                            country_groups[display_name].append(r_str)
                         
-                        # বেশি থেকে কম অর্ডারে সাজানো
-                        sorted_countries = sorted(country_counts.items(), key=lambda x: x[1], reverse=True)
+                        sorted_groups = sorted(country_groups.items(), key=lambda x: len(x[1]), reverse=True)
                         
-                        for c_name, count in sorted_countries:
+                        for c_name, r_list in sorted_groups:
+                            count = len(r_list)
+                            sample_rid = r_list[0] if r_list else ""
+                            c_code_val = c_name.split('(')[-1].replace(')', '').strip()
+                            
                             btn_text = f"{c_name} - {count} OTP"
-                            # প্রথম রেঞ্জটি ব্যাকএন্ডে পাস করার জন্য
-                            sample_rid = [str(r).replace("XXX", "").replace("xxx", "").strip() for r in ranges if str(r).startswith(get_country_info_by_range_or_text(r, c_name.split('(')[1].split(')')[0])[1])][0] if ranges else ""
-                            keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"get3_{sample_rid}_{c_name.split('(')[1].split(')')[0]}")])
+                            keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"get3_{sample_rid}_{c_code_val}")])
                         break
                 
                 keyboard.append([InlineKeyboardButton("Back", callback_data="close_menu")])
