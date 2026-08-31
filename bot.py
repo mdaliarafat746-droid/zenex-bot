@@ -17,7 +17,6 @@ BOT_TOKEN = "8998738234:AAGpV1zS4miYRC9AxNpSHvJNyWPgkfI9-U4"
 ADMIN_CHAT_ID = 6470943912  
 OTP_GROUP_CHAT_ID = -1003857083035  
 
-# নতুন প্যানেলের ক্রেডেনশিয়াল এবং বেস পাথ
 PANEL_API_KEY = "MTPXMVWZJWL"
 BASE_URL = "https://api.2oo9.cloud/MXS47FLFX0U/tness/@public/api"
 
@@ -72,19 +71,6 @@ def get_country_info_by_range_or_text(range_str, country_field, raw_text=""):
             return flag, iso, iso
 
     return "🌍", c_field if c_field else "INT", "INTERNATIONAL"
-
-def get_service_display(service_name, raw_item):
-    srv = str(service_name).lower()
-    if "telegram" in srv:
-        return "✈️ Telegram"
-    elif "whatsapp" in srv or "wa" in srv:
-        return "💬 WhatsApp"
-    elif "instagram" in srv or "ig" in srv:
-        return "📸 Instagram"
-    elif "facebook" in srv or "fb" in srv:
-        return "📘 Facebook"
-    else:
-        return f"🌐 {service_name}"
 
 async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
     try:
@@ -212,13 +198,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if text == "🛠️ Select Service":
         keyboard = [
-            [InlineKeyboardButton("✈️ Telegram", callback_data="srv_Telegram"), InlineKeyboardButton("💬 WhatsApp", callback_data="srv_WhatsApp")],
-            [InlineKeyboardButton("📸 Instagram", callback_data="srv_Instagram"), InlineKeyboardButton("🌐 All Services", callback_data="srv_All")]
+            [InlineKeyboardButton("WHATSAPP", callback_data="srv_WhatsApp"), InlineKeyboardButton("INSTAGRAM", callback_data="srv_Instagram")],
+            [InlineKeyboardButton("FACEBOOK", callback_data="srv_Facebook"), InlineKeyboardButton("MICROSOFT", callback_data="srv_Microsoft")],
+            [InlineKeyboardButton("🌐 All Services", callback_data="srv_All")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         current_srv = user_target_services.get(chat_id, "All")
         await update.message.reply_text(
-            f"🛠️ **Select Your Desired Service:**\n"
+            f"🛠️ **Select a service:**\n"
             f"📌 Current Selected Service: `{current_srv}`\n\n"
             f"👇 Click a button below to change:",
             parse_mode="Markdown",
@@ -280,7 +267,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await loading_msg.edit_text(f"⚠️ **Gateway Timeout:** Failed to fetch numbers. Error: `{e}`", parse_mode="Markdown")
 
     elif text == "📱 Get Number":
-        loading_msg = await update.message.reply_text("⌛ **Getting active ranges...**", parse_mode="Markdown")
+        loading_msg = await update.message.reply_text("⌛ **Getting active services...**", parse_mode="Markdown")
         services_list = []
         try:
             r1 = requests.get(f'{BASE_URL}/liveaccess', headers={'mauthapi': PANEL_API_KEY}, timeout=5).json()
@@ -290,37 +277,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             pass
         
         if len(services_list) > 0:
-            hot_list = load_hot_ranges()
             keyboard = []
-            count = 0
-            
             for s_item in services_list:
-                sid = s_item.get('sid', 'Unknown')
-                ranges = s_item.get('ranges', [])
-                type_label = get_service_display(sid, sid)
-                
-                for rng_raw in ranges:
-                    rng = str(rng_raw).replace("XXX", "").replace("xxx", "").strip()
-                    flag, c_code, _ = get_country_info_by_range_or_text(rng, "")
-                    
-                    fire_tag = ""
-                    for hot in hot_list:
-                        if rng.startswith(hot) or hot.startswith(rng):
-                            fire_tag = " 🔥"
-                            break
-                    
-                    keyboard.append([InlineKeyboardButton(f"{flag} {rng_raw} | {type_label}{fire_tag}", callback_data=f"get3_{rng}_{c_code}")])
-                    count += 1
-                    if count >= 30:
-                        break
-                if count >= 30:
-                    break
+                sid = str(s_item.get('sid', 'UNKNOWN')).strip().upper()
+                keyboard.append([InlineKeyboardButton(f"{sid}", callback_data=f"srv_menu_{sid}")])
             
-            keyboard.append([InlineKeyboardButton("❌ Close Menu", callback_data="close_menu")])
+            keyboard.append([InlineKeyboardButton("Close", callback_data="close_menu")])
             reply_markup = InlineKeyboardMarkup(keyboard)
-            await loading_msg.edit_text(f"⚡ **LIVE ACTIVE RANGES**\n📂 **Available Slots:** `{count}`\n\n👇 _Select your preferred range below:_", parse_mode="Markdown", reply_markup=reply_markup)
+            await loading_msg.edit_text("📌 **Select a service:**", parse_mode="Markdown", reply_markup=reply_markup)
         else:
-            await loading_msg.edit_text("❌ **No active ranges found.**", parse_mode="Markdown")
+            await loading_msg.edit_text("❌ **No active services found.**", parse_mode="Markdown")
             
     elif text == "📩 Live OTP Inbox":
         loading_msg = await update.message.reply_text("⌛ **Checking inbox...**", parse_mode="Markdown")
@@ -371,7 +337,7 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except:
         pass
 
-    if data_code.startswith("srv_"):
+    if data_code.startswith("srv_") and not data_code.startswith("srv_menu_"):
         selected_srv = data_code.split("_")[1]
         user_target_services[chat_id] = selected_srv
         await query.edit_message_text(
@@ -380,6 +346,60 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Now you can get numbers using this service filter.",
             parse_mode="Markdown"
         )
+        return
+
+    if data_code.startswith("srv_menu_"):
+        chosen_sid = data_code.replace("srv_menu_", "")
+        try:
+            r1 = requests.get(f'{BASE_URL}/liveaccess', headers={'mauthapi': PANEL_API_KEY}, timeout=5).json()
+            if r1.get('meta', {}).get('code') == 200:
+                services_list = r1.get('data', {}).get('services', [])
+                hot_list = load_hot_ranges()
+                keyboard = []
+                count = 0
+                
+                for s_item in services_list:
+                    if str(s_item.get('sid', '')).strip().upper() == chosen_sid:
+                        ranges = s_item.get('ranges', [])
+                        for rng_raw in ranges:
+                            rng = str(rng_raw).replace("XXX", "").replace("xxx", "").strip()
+                            flag, c_code, _ = get_country_info_by_range_or_text(rng, "")
+                            
+                            fire_tag = ""
+                            for hot in hot_list:
+                                if rng.startswith(hot) or hot.startswith(rng):
+                                    fire_tag = " 🔥"
+                                    break
+                            
+                            keyboard.append([InlineKeyboardButton(f"{flag} {rng_raw} | {chosen_sid}{fire_tag}", callback_data=f"get3_{rng}_{c_code}")])
+                            count += 1
+                            if count >= 30:
+                                break
+                        break
+                
+                keyboard.append([InlineKeyboardButton("🔙 Back to Services", callback_data="back_to_services")])
+                keyboard.append([InlineKeyboardButton("Close", callback_data="close_menu")])
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                await query.edit_message_text(f"📌 **Ranges for {chosen_sid}:**", parse_mode="Markdown", reply_markup=reply_markup)
+        except:
+            await query.edit_message_text("❌ **Error loading ranges.**", parse_mode="Markdown")
+        return
+
+    if data_code == "back_to_services":
+        try:
+            r1 = requests.get(f'{BASE_URL}/liveaccess', headers={'mauthapi': PANEL_API_KEY}, timeout=5).json()
+            if r1.get('meta', {}).get('code') == 200:
+                services_list = r1.get('data', {}).get('services', [])
+                keyboard = []
+                for s_item in services_list:
+                    sid = str(s_item.get('sid', 'UNKNOWN')).strip().upper()
+                    keyboard.append([InlineKeyboardButton(f"{sid}", callback_data=f"srv_menu_{sid}")])
+                
+                keyboard.append([InlineKeyboardButton("Close", callback_data="close_menu")])
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                await query.edit_message_text("📌 **Select a service:**", parse_mode="Markdown", reply_markup=reply_markup)
+        except:
+            await query.message.delete()
         return
 
     if data_code.startswith("get3_") or data_code.startswith("chg_"):
@@ -416,7 +436,7 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 
                 keyboard = [[InlineKeyboardButton("🔄 Change Number", callback_data=f"chg_{range_value}_{final_c_code}")] ]
                 if data_code.startswith("get3_"):
-                    keyboard.append([InlineKeyboardButton("🌐 Back to Country Menu", callback_data="back_to_menu")])
+                    keyboard.append([InlineKeyboardButton("🔙 Back to Services", callback_data="back_to_services")])
                 
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 result_msg = (
@@ -435,49 +455,6 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except:
             await query.edit_message_text("⚠️ **Gateway Timeout:** Failed to fetch numbers.", parse_mode="Markdown")
 
-    elif data_code == "back_to_menu":
-        try:
-            loading_msg = query.message
-            services_list = []
-            r1 = requests.get(f'{BASE_URL}/liveaccess', headers={'mauthapi': PANEL_API_KEY}, timeout=5).json()
-            if r1.get('meta', {}).get('code') == 200:
-                services_list = r1.get('data', {}).get('services', [])
-            
-            if len(services_list) > 0:
-                hot_list = load_hot_ranges()
-                keyboard = []
-                count = 0
-                
-                for s_item in services_list:
-                    sid = s_item.get('sid', 'Unknown')
-                    ranges = s_item.get('ranges', [])
-                    type_label = get_service_display(sid, sid)
-                    
-                    for rng_raw in ranges:
-                        rng = str(rng_raw).replace("XXX", "").replace("xxx", "").strip()
-                        flag, c_code, _ = get_country_info_by_range_or_text(rng, "")
-                        
-                        fire_tag = ""
-                        for hot in hot_list:
-                            if rng.startswith(hot) or hot.startswith(rng):
-                                fire_tag = " 🔥"
-                                break
-                        
-                        keyboard.append([InlineKeyboardButton(f"{flag} {rng_raw} | {type_label}{fire_tag}", callback_data=f"get3_{rng}_{c_code}")])
-                        count += 1
-                        if count >= 30:
-                            break
-                    if count >= 30:
-                        break
-                
-                keyboard.append([InlineKeyboardButton("❌ Close Menu", callback_data="close_menu")])
-                reply_markup = InlineKeyboardMarkup(keyboard)
-                await loading_msg.edit_text(f"⚡ **LIVE ACTIVE RANGES**\n📂 **Available Slots:** `{count}`\n\n👇 _Select your preferred range below:_", parse_mode="Markdown", reply_markup=reply_markup)
-            else:
-                await loading_msg.edit_text("❌ **No active ranges found.**", parse_mode="Markdown")
-        except:
-            await query.message.delete()
-
     elif data_code == "close_menu":
         try:
             await query.message.delete()
@@ -495,7 +472,7 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
     app.add_handler(CallbackQueryHandler(button_click))
     
-    print("Bot is running successfully with all updates...")
+    print("Bot is running successfully with interactive service selection menu...")
     app.run_polling(drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
