@@ -172,7 +172,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_target_ranges[chat_id] = text.replace("XXX", "").replace("xxx", "").strip()
         waiting_for_range[chat_id] = False
         await update.message.reply_text(
-            f"✅ **Target Range/RID Successfully Set:** `{text}`\n\nNow click on **'📱 Get Number'** to choose ranges.",
+            f"✅ **Target Range/RID Successfully Set:** `{text}`\n\nNow click on **'📱 Get Number'** to choose high traffic ranges.",
             parse_mode="Markdown"
         )
         return
@@ -266,8 +266,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         
                         for c_name, info in sorted_countries:
                             total_otp = len(info["ranges"])
-                            status = "HIGH 🟢" if total_otp >= 3 else "LOW 🔴"
-                            btn_text = f"{info['flag']} {c_name} - {total_otp} OTP [{status}]"
+                            if total_otp < 3:  # Only allow high traffic ranges (>= 3)
+                                continue
+                            
+                            btn_text = f"{info['flag']} {c_name} - {total_otp} OTP [HIGH 🟢]"
                             callback_val = f"cnt_{selected_service}_{info['c_code']}"
                             
                             keyboard.append([InlineKeyboardButton(btn_text, callback_data=callback_val)])
@@ -275,13 +277,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         break
                 
                 if not has_data:
-                    await loading_msg.edit_text("📭 **No ranges available for Facebook right now.**", parse_mode="Markdown")
+                    await loading_msg.edit_text("📭 **No High Traffic ranges available for Facebook right now.**", parse_mode="Markdown")
                     return
                 
                 keyboard.append([InlineKeyboardButton("Close", callback_data="close_menu")])
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 
-                await loading_msg.edit_text(f"📱 **Select Country / High Traffic Range**\n📘 Service: `{selected_service}`\n\n👇 Choose a country below to view available ranges:", parse_mode="Markdown", reply_markup=reply_markup)
+                await loading_msg.edit_text(f"📱 **Select Country / High Traffic Range**\n📘 Service: `{selected_service}`\n\n👇 Choose a country below to view available high ranges:", parse_mode="Markdown", reply_markup=reply_markup)
             else:
                 await loading_msg.edit_text("❌ **Failed to load traffic ranges.**", parse_mode="Markdown")
         except Exception as e:
@@ -468,15 +470,17 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         sorted_countries = sorted(country_groups.items(), key=lambda x: len(x[1]["ranges"]), reverse=True)
                         for c_name, info in sorted_countries:
                             total_otp = len(info["ranges"])
-                            status = "HIGH 🟢" if total_otp >= 3 else "LOW 🔴"
-                            btn_text = f"{info['flag']} {c_name} - {total_otp} OTP [{status}]"
+                            if total_otp < 3:  # Only allow high traffic ranges (>= 3)
+                                continue
+                            
+                            btn_text = f"{info['flag']} {c_name} - {total_otp} OTP [HIGH 🟢]"
                             callback_val = f"cnt_{selected_srv}_{info['c_code']}"
                             keyboard.append([InlineKeyboardButton(btn_text, callback_data=callback_val)])
                         break
                 
                 keyboard.append([InlineKeyboardButton("Close", callback_data="close_menu")])
                 reply_markup = InlineKeyboardMarkup(keyboard)
-                await query.edit_message_text(f"📱 **Select Country / High Traffic Range**\n📘 Service: `{selected_srv}`\n\n👇 Choose a country below to view available ranges:", parse_mode="Markdown", reply_markup=reply_markup)
+                await query.edit_message_text(f"📱 **Select Country / High Traffic Range**\n📘 Service: `{selected_srv}`\n\n👇 Choose a country below to view available high ranges:", parse_mode="Markdown", reply_markup=reply_markup)
         except:
             await query.message.delete()
         return
