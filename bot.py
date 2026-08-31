@@ -103,17 +103,10 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
                 if len(sent_otps_cache) > 1000:
                     sent_otps_cache.pop()
                     
-                flag, c_code, _ = get_country_info_by_range_or_text(clean_num, "")
+                flag, _, _ = get_country_info_by_range_or_text(clean_num, "")
                 
-                msg_text = (
-                    f"🔔 **NEW VERIFICATION CODE RECEIVED**\n"
-                    f"━━━━━━━━━━━━━━━━━━━\n"
-                    f"🌍 **Country:** {flag} `{c_code}`\n"
-                    f"📱 **Number:** `+{clean_num}`\n"
-                    f"🔑 **OTP Message:** `{raw_msg}`\n"
-                    f"⚡ **Extracted Code:** `{otp_text}`\n"
-                    f"━━━━━━━━━━━━━━━━━━━"
-                )
+                # Format: Flag + Number + Code (Clean & Short)
+                msg_text = f"{flag} `+{clean_num}` : `🔑 {otp_text}`"
                 
                 try:
                     await context.bot.send_message(chat_id=target_chat_id, text=msg_text, parse_mode="Markdown")
@@ -329,7 +322,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 reply_markup = InlineKeyboardMarkup(keyboard)
 
                 result_msg = (
-                    f"✅ **API NUMBERS SUCCESSFULLY ASSIGNED**\n"
+                    f"✅ **HIGH TRAFFIC API NUMBERS ASSIGNED**\n"
                     f"━━━━━━━━━━━━━━━━━━━\n"
                     f"🌍 **Country:** {flag} **{full_country_name}** (`{final_c_code}`)\n"
                     f"📌 **Range/RID:** `{range_value}` | **Service:** `{selected_service}`\n"
@@ -355,8 +348,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     if number_to_user_map.get(clean_num) == chat_id:
                         raw_msg = item.get('message', '')
                         otp_text = extract_pure_code(raw_msg)
-                        flag, c_code, _ = get_country_info_by_range_or_text(clean_num, "")
-                        msg += f"{flag} `{c_code}` | `+{clean_num}`\n🔑 Code: `{otp_text}`\n──────────────────\n"
+                        flag, _, _ = get_country_info_by_range_or_text(clean_num, "")
+                        msg += f"{flag} `+{clean_num}` : `🔑 {otp_text}`\n"
             if len(msg) <= 30:
                 msg = "📭 **Inbox is clean!** No active verification codes found for your numbers."
             await loading_msg.edit_text(msg, parse_mode="Markdown")
