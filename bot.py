@@ -385,20 +385,26 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                 country_groups[display_name] = []
                             country_groups[display_name].append(r_str)
                         
-                        sorted_groups = sorted(country_groups.items(), key=lambda x: len(x[1]), reverse=True)
+                        # শুধুমাত্র HIGH ট্রাফিকযুক্ত দেশগুলো ফিল্টার করার লজিক
+                        high_traffic_countries = []
+                        for c_name, r_list in country_groups.items():
+                            if len(r_list) >= 3:  # Live Traffic এর মতো >= 3 হলে HIGH ধরা হয়েছে
+                                high_traffic_countries.append((c_name, r_list))
+                        
+                        sorted_groups = sorted(high_traffic_countries, key=lambda x: len(x[1]), reverse=True)
                         
                         for c_name, r_list in sorted_groups:
                             sample_rid = r_list[0] if r_list else ""
                             c_code_val = get_country_info_by_range_or_text(sample_rid, "")[1]
                             
-                            btn_text = f"{c_name} - 0.4 TK/OTP"
+                            btn_text = f"{c_name} - HIGH 🟢"
                             keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"get4_{sample_rid}_{c_code_val}")])
                         break
                 
                 keyboard.append([InlineKeyboardButton("Back", callback_data="back_to_services_main")])
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 
-                await query.edit_message_text(f"📌 Select a country for {chosen_sid}:", parse_mode="Markdown", reply_markup=reply_markup)
+                await query.edit_message_text(f"🔥 **High Traffic Countries for {chosen_sid}:**", parse_mode="Markdown", reply_markup=reply_markup)
         except:
             await query.edit_message_text("❌ **Error loading countries.**", parse_mode="Markdown")
         return
