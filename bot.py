@@ -129,13 +129,13 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
                     f"🌐 **{c_code}** | 📘 `{masked_num}` ➔ 🔑 `{otp_text}`"
                 )
                 
-                # ছবির স্টাইলে ইনলাইন বাটন
+                # ইনলাইন বাটন (বোট ইউজারনেم @personal40bot সহ)
                 keyboard = [
                     [
                         InlineKeyboardButton("📢 Channel", url="https://t.me/your_channel_link"),
                         InlineKeyboardButton(f"🔑 {otp_text}", callback_data="noop")
                     ],
-                    [InlineKeyboardButton("📞 Get Number", url="https://t.me/your_bot_username")]
+                    [InlineKeyboardButton("📞 Get Number", url="https://t.me/personal40bot")]
                 ]
                 group_reply_markup = InlineKeyboardMarkup(keyboard)
                 
