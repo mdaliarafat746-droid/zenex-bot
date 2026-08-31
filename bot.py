@@ -34,20 +34,20 @@ def extract_pure_code(full_text):
         return match.group(0)
     return text
 
-def get_country_info_by_range_or_text(range_str, country_field):
+def get_country_info_by_range_or_text(range_str, country_field, raw_text=""):
     c_field = str(country_field).strip().upper()
     r_str = str(range_str).strip().replace("+", "")
     
     iso_to_name = {
-        "AM": "Armenia", "BD": "Bangladesh", "IN": "India", "US": "United States", 
-        "GB": "United Kingdom", "RU": "Russia", "TJ": "Tajikistan", "MG": "Madagascar", 
-        "UA": "Ukraine", "GN": "Guinea", "TG": "Togo", "CM": "Cameroon", 
-        "CI": "Ivory Coast", "CF": "Central African Republic", "BJ": "Benin", "MY": "Malaysia", 
-        "MA": "Morocco", "SD": "Sudan", "TZ": "Tanzania", "ZW": "Zimbabwe", 
-        "DZ": "Algeria", "BO": "Bolivia", "EG": "Egypt", "GH": "Ghana", 
-        "BR": "Brazil", "PK": "Pakistan", "ID": "Indonesia", "VN": "Vietnam", 
-        "PH": "Philippines", "TR": "Turkey", "IR": "Iran", "NP": "Nepal", "ME": "Montenegro",
-        "SL": "Sierra Leone"
+        "AM": "ARMENIA", "BD": "BANGLADESH", "IN": "INDIA", "US": "UNITED STATES", 
+        "GB": "UNITED KINGDOM", "RU": "RUSSIA", "TJ": "TAJIKISTAN", "MG": "MADAGASCAR", 
+        "UA": "UKRAINE", "GN": "GUINEA", "TG": "TOGO", "CM": "CAMEROON", 
+        "CI": "IVORY COAST", "CF": "CENTRAL AFRICAN REPUBLIC", "BJ": "BENIN", "MY": "MALAYSIA", 
+        "MA": "MOROCCO", "SD": "SUDAN", "TZ": "TANZANIA, UNITED REPUBLIC OF", "ZW": "ZIMBABWE", 
+        "DZ": "ALGERIA", "BO": "BOLIVIA", "EG": "EGYPT", "GH": "GHANA", 
+        "BR": "BRAZIL", "PK": "PAKISTAN", "ID": "INDONESIA", "VN": "VIETNAM", 
+        "PH": "PHILIPPINES", "TR": "TURKEY", "IR": "IRAN", "NP": "NEPAL", "ME": "MONTENEGRO",
+        "SL": "SIERRA LEONE"
     }
 
     if len(c_field) == 2 and c_field.isalpha():
@@ -71,7 +71,7 @@ def get_country_info_by_range_or_text(range_str, country_field):
             full_name = iso_to_name.get(iso, iso)
             return flag, iso, full_name
 
-    return "🌍", c_field if c_field else "INT", "International"
+    return "🌍", c_field if c_field else "INT", "INTERNATIONAL"
 
 async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
     try:
@@ -187,28 +187,47 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    if text == "📊 Live Traffic" or text == "📱 Get Number":
-        loading_msg = await update.message.reply_text("⌛ **Loading services...**", parse_mode="Markdown")
+    if text == "📊 Live Traffic":
+        loading_msg = await update.message.reply_text("⌛ **Loading Live Traffic...**", parse_mode="Markdown")
         try:
             res = requests.get(f'{BASE_URL}/liveaccess', headers={'mauthapi': PANEL_API_KEY}, timeout=5).json()
             if res.get('meta', {}).get('code') == 200:
                 services_list = res.get('data', {}).get('services', [])
-                keyboard = []
                 allowed_services = ["FACEBOOK", "WHATSAPP"]
-                seen_services = set()
+                traffic_text = "🔥 **10 Minute LIVE Traffic**\n\n"
                 
+                has_data = False
                 for s_item in services_list:
                     sid = str(s_item.get('sid', '')).strip().upper()
-                    if sid in allowed_services and sid not in seen_services:
-                        seen_services.add(sid)
-                        keyboard.append([InlineKeyboardButton(sid, callback_data=f"srv_list_{sid}")])
+                    if sid in allowed_services:
+                        ranges = s_item.get('ranges', [])
+                        total_ranges = len(ranges)
+                        
+                        traffic_text += f"📘 **{sid} {total_ranges}**\n"
+                        
+                        country_count = {}
+                        for r_raw in ranges:
+                            r_str = str(r_raw).replace("XXX", "").replace("xxx", "").strip()
+                            flag, c_code, full_name = get_country_info_by_range_or_text(r_str, "")
+                            c_key = (flag, full_name)
+                            country_count[c_key] = country_count.get(c_key, 0) + 1
+                        
+                        sorted_countries = sorted(country_count.items(), key=lambda x: x[1], reverse=True)
+                        
+                        for (flag, full_name), count in sorted_countries:
+                            status = "HIGH" if count >= 3 else "LOW"
+                            status_icon = "🟢" if status == "HIGH" else "🔴"
+                            traffic_text += f"{flag} {full_name} : {status} {status_icon}\n"
+                        
+                        traffic_text += "\n"
+                        has_data = True
                 
-                keyboard.append([InlineKeyboardButton("Close", callback_data="close_menu")])
-                reply_markup = InlineKeyboardMarkup(keyboard)
+                if not has_data:
+                    traffic_text = "📭 **No live traffic data available right now.**"
                 
-                await loading_msg.edit_text("📊 **Explore Service:** Select a service below:", parse_mode="Markdown", reply_markup=reply_markup)
+                await loading_msg.edit_text(traffic_text, parse_mode="Markdown")
             else:
-                await loading_msg.edit_text("❌ **Failed to load services.**", parse_mode="Markdown")
+                await loading_msg.edit_text("❌ **Failed to load live traffic.**", parse_mode="Markdown")
         except Exception as e:
             await loading_msg.edit_text(f"⚠️ **Error:** `{e}`", parse_mode="Markdown")
         return
@@ -264,6 +283,32 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await loading_msg.edit_text(f"❌ **Stock Exhausted:** No numbers available for range `{range_value}` right now.", parse_mode="Markdown")
         except Exception as e:
             await loading_msg.edit_text(f"⚠️ **Gateway Timeout:** Failed to fetch numbers. Error: `{e}`", parse_mode="Markdown")
+
+    elif text == "📱 Get Number":
+        loading_msg = await update.message.reply_text("⌛ **Loading services...**", parse_mode="Markdown")
+        try:
+            res = requests.get(f'{BASE_URL}/liveaccess', headers={'mauthapi': PANEL_API_KEY}, timeout=5).json()
+            if res.get('meta', {}).get('code') == 200:
+                services_list = res.get('data', {}).get('services', [])
+                keyboard = []
+                allowed_services = ["FACEBOOK", "WHATSAPP"]
+                seen_services = set()
+                
+                for s_item in services_list:
+                    sid = str(s_item.get('sid', '')).strip().upper()
+                    if sid in allowed_services and sid not in seen_services:
+                        seen_services.add(sid)
+                        keyboard.append([InlineKeyboardButton(sid, callback_data=f"srv_list_{sid}")])
+                
+                keyboard.append([InlineKeyboardButton("Close", callback_data="close_menu")])
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                
+                await loading_msg.edit_text("📌 Select a service:", parse_mode="Markdown", reply_markup=reply_markup)
+            else:
+                await loading_msg.edit_text("❌ **Failed to load services.**", parse_mode="Markdown")
+        except Exception as e:
+            await loading_msg.edit_text(f"⚠️ **Error:** `{e}`", parse_mode="Markdown")
+        return
             
     elif text == "📩 Live OTP Inbox":
         loading_msg = await update.message.reply_text("⌛ **Checking inbox...**", parse_mode="Markdown")
@@ -334,85 +379,34 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         for r_raw in ranges:
                             r_str = str(r_raw).replace("XXX", "").replace("xxx", "").strip()
                             flag, c_code, full_name = get_country_info_by_range_or_text(r_str, "")
-                            display_name = f"{full_name} ({c_code})"
+                            display_name = f"{flag} {full_name}"
                             
                             if display_name not in country_groups:
-                                country_groups[display_name] = {"flag": flag, "c_code": c_code, "ranges": []}
-                            country_groups[display_name]["ranges"].append(r_str)
+                                country_groups[display_name] = []
+                            country_groups[display_name].append(r_str)
                         
-                        sorted_countries = sorted(country_groups.items(), key=lambda x: len(x[1]["ranges"]), reverse=True)
+                        # শুধুমাত্র HIGH ট্রাফিকযুক্ত দেশগুলো ফিল্টার করার লজিক
+                        high_traffic_countries = []
+                        for c_name, r_list in country_groups.items():
+                            if len(r_list) >= 3:  # Live Traffic এর মতো >= 3 হলে HIGH ধরা হয়েছে
+                                high_traffic_countries.append((c_name, r_list))
                         
-                        row = []
-                        for c_name, info in sorted_countries:
-                            total_otp = len(info["ranges"])
-                            btn_text = f"{info['flag']} {c_name} - {total_otp} OTP"
-                            callback_val = f"cnt_{chosen_sid}_{info['c_code']}"
+                        sorted_groups = sorted(high_traffic_countries, key=lambda x: len(x[1]), reverse=True)
+                        
+                        for c_name, r_list in sorted_groups:
+                            sample_rid = r_list[0] if r_list else ""
+                            c_code_val = get_country_info_by_range_or_text(sample_rid, "")[1]
                             
-                            row.append(InlineKeyboardButton(btn_text, callback_data=callback_val))
-                            if len(row) == 1:
-                                keyboard.append(row)
-                                row = []
-                        if row:
-                            keyboard.append(row)
+                            btn_text = f"{c_name} - HIGH 🟢"
+                            keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"get4_{sample_rid}_{c_code_val}")])
                         break
                 
                 keyboard.append([InlineKeyboardButton("Back", callback_data="back_to_services_main")])
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 
-                await query.edit_message_text(f"📊 **Explore Service:** 📘 {chosen_sid}\n\nSelect a country to view available ranges:", parse_mode="Markdown", reply_markup=reply_markup)
-        except Exception as e:
-            await query.edit_message_text(f"❌ **Error loading countries:** `{e}`", parse_mode="Markdown")
-        return
-
-    if data_code.startswith("cnt_"):
-        parts = data_code.split("_")
-        chosen_sid = parts[1]
-        target_c_code = parts[2]
-        
-        try:
-            res = requests.get(f'{BASE_URL}/liveaccess', headers={'mauthapi': PANEL_API_KEY}, timeout=5).json()
-            if res.get('meta', {}).get('code') == 200:
-                services_list = res.get('data', {}).get('services', [])
-                keyboard = []
-                
-                for s_item in services_list:
-                    sid = str(s_item.get('sid', '')).strip().upper()
-                    if sid == chosen_sid:
-                        ranges = s_item.get('ranges', [])
-                        matched_ranges = []
-                        flag = "🌍"
-                        
-                        for r_raw in ranges:
-                            r_str = str(r_raw).replace("XXX", "").replace("xxx", "").strip()
-                            f_val, c_code_val, _ = get_country_info_by_range_or_text(r_str, "")
-                            if c_code_val == target_c_code:
-                                flag = f_val
-                                matched_ranges.append(r_str)
-                        
-                        # প্রতিটা রেঞ্জের ট্রাফিক কাউন্ট দেখানোর জন্য সর্টিং ও গ্রুপিং
-                        range_counts = {}
-                        for r in matched_ranges:
-                            range_counts[r] = range_counts.get(r, 0) + 1
-                            
-                        sorted_ranges = sorted(range_counts.items(), key=lambda x: x[1], reverse=True)
-                        
-                        row = []
-                        for r_val, count in sorted_ranges:
-                            btn_text = f"{r_val} ({count})"
-                            row.append(InlineKeyboardButton(btn_text, callback_data=f"get4_{r_val}_{target_c_code}"))
-                            if len(row) == 2:
-                                keyboard.append(row)
-                                row = []
-                        if row:
-                            keyboard.append(row)
-                        break
-                
-                keyboard.append([InlineKeyboardButton("Back", callback_data=f"srv_list_{chosen_sid}")])
-                reply_markup = InlineKeyboardMarkup(keyboard)
-                
-                await query.edit_message_text(f"📊 **Ranges for** 📘 {chosen_sid} - {flag} {target_c_code}\n\nClick on any range to copy it.", parse_mode="Markdown", reply_markup=reply_markup)
-        except Exception as e:
-            await query.edit_message_text(f"❌ **Error loading ranges:** `{e}`", parse_mode="Markdown")
+                await query.edit_message_text(f"🔥 **High Traffic Countries for {chosen_sid}:**", parse_mode="Markdown", reply_markup=reply_markup)
+        except:
+            await query.edit_message_text("❌ **Error loading countries.**", parse_mode="Markdown")
         return
 
     if data_code == "back_to_services_main":
@@ -432,7 +426,7 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 
                 keyboard.append([InlineKeyboardButton("Close", callback_data="close_menu")])
                 reply_markup = InlineKeyboardMarkup(keyboard)
-                await query.edit_message_text("📊 **Explore Service:** Select a service below:", parse_mode="Markdown", reply_markup=reply_markup)
+                await query.edit_message_text("📌 Select a service:", parse_mode="Markdown", reply_markup=reply_markup)
         except:
             await query.message.delete()
         return
