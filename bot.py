@@ -38,16 +38,16 @@ def get_country_info_by_range_or_text(range_str, country_field, raw_text=""):
     c_field = str(country_field).strip().upper()
     r_str = str(range_str).strip().replace("+", "")
     
-    # ISO কোড ম্যাপিং (পূর্ণাঙ্গ দেশের নাম সহ)
     iso_to_name = {
-        "AM": "Armenia", "BD": "Bangladesh", "IN": "India", "US": "United States", 
-        "GB": "United Kingdom", "RU": "Russia", "TJ": "Tajikistan", "MG": "Madagascar", 
-        "UA": "Ukraine", "GN": "Guinea", "TG": "Togo", "CM": "Cameroon", 
-        "CI": "Ivory Coast", "CF": "Central Africa", "BJ": "Benin", "MY": "Malaysia", 
-        "MA": "Morocco", "SD": "Sudan", "TZ": "Tanzania", "ZW": "Zimbabwe", 
-        "DZ": "Algeria", "BO": "Bolivia", "EG": "Egypt", "GH": "Ghana", 
-        "BR": "Brazil", "PK": "Pakistan", "ID": "Indonesia", "VN": "Vietnam", 
-        "PH": "Philippines", "TR": "Turkey", "IR": "Iran", "NP": "Nepal", "ME": "Montenegro"
+        "AM": "ARMENIA", "BD": "BANGLADESH", "IN": "INDIA", "US": "UNITED STATES", 
+        "GB": "UNITED KINGDOM", "RU": "RUSSIA", "TJ": "TAJIKISTAN", "MG": "MADAGASCAR", 
+        "UA": "UKRAINE", "GN": "GUINEA", "TG": "TOGO", "CM": "CAMEROON", 
+        "CI": "IVORY COAST", "CF": "CENTRAL AFRICAN REPUBLIC", "BJ": "BENIN", "MY": "MALAYSIA", 
+        "MA": "MOROCCO", "SD": "SUDAN", "TZ": "TANZANIA, UNITED REPUBLIC OF", "ZW": "ZIMBABWE", 
+        "DZ": "ALGERIA", "BO": "BOLIVIA", "EG": "EGYPT", "GH": "GHANA", 
+        "BR": "BRAZIL", "PK": "PAKISTAN", "ID": "INDONESIA", "VN": "VIETNAM", 
+        "PH": "PHILIPPINES", "TR": "TURKEY", "IR": "IRAN", "NP": "NEPAL", "ME": "MONTENEGRO",
+        "SL": "SIERRA LEONE"
     }
 
     if len(c_field) == 2 and c_field.isalpha():
@@ -62,7 +62,7 @@ def get_country_info_by_range_or_text(range_str, country_field, raw_text=""):
         "212": "MA", "249": "SD", "255": "TZ", "263": "ZW", "213": "DZ", 
         "591": "BO", "20": "EG", "233": "GH", "55": "BR", "92": "PK",
         "62": "ID", "84": "VN", "63": "PH", "90": "TR", "98": "IR", "977": "NP",
-        "382": "ME"
+        "382": "ME", "232": "SL"
     }
     
     for prefix, iso in sorted(prefix_to_iso.items(), key=lambda x: len(x[0]), reverse=True):
@@ -71,7 +71,7 @@ def get_country_info_by_range_or_text(range_str, country_field, raw_text=""):
             full_name = iso_to_name.get(iso, iso)
             return flag, iso, full_name
 
-    return "🌍", c_field if c_field else "INT", "International"
+    return "🌍", c_field if c_field else "INT", "INTERNATIONAL"
 
 async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
     try:
@@ -193,38 +193,39 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             res = requests.get(f'{BASE_URL}/liveaccess', headers={'mauthapi': PANEL_API_KEY}, timeout=5).json()
             if res.get('meta', {}).get('code') == 200:
                 services_list = res.get('data', {}).get('services', [])
-                keyboard = []
+                allowed_services = ["FACEBOOK", "WHATSAPP"]
+                traffic_text = "🔥 **10 Minute LIVE Traffic**\n\n"
                 
+                has_data = False
                 for s_item in services_list:
                     sid = str(s_item.get('sid', '')).strip().upper()
-                    if sid == "FACEBOOK":
+                    if sid in allowed_services:
                         ranges = s_item.get('ranges', [])
-                        country_groups = {}
+                        total_ranges = len(ranges)
                         
+                        traffic_text += f"📘 **{sid} {total_ranges}**\n"
+                        
+                        country_count = {}
                         for r_raw in ranges:
                             r_str = str(r_raw).replace("XXX", "").replace("xxx", "").strip()
                             flag, c_code, full_name = get_country_info_by_range_or_text(r_str, "")
-                            display_name = f"{flag} {full_name}"
-                            
-                            if display_name not in country_groups:
-                                country_groups[display_name] = []
-                            country_groups[display_name].append(r_str)
+                            c_key = (flag, full_name)
+                            country_count[c_key] = country_count.get(c_key, 0) + 1
                         
-                        sorted_groups = sorted(country_groups.items(), key=lambda x: len(x[1]), reverse=True)
+                        sorted_countries = sorted(country_count.items(), key=lambda x: x[1], reverse=True)
                         
-                        for c_name, r_list in sorted_groups:
-                            sample_rid = r_list[0] if r_list else ""
-                            c_code_val = get_country_info_by_range_or_text(sample_rid, "")[1]
-                            
-                            btn_text = f"{c_name} - 0.4 TK/OTP"
-                            keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"get4_{sample_rid}_{c_code_val}")])
-                        break
+                        for (flag, full_name), count in sorted_countries:
+                            status = "HIGH" if count >= 3 else "LOW"
+                            status_icon = "🟢" if status == "HIGH" else "🔴"
+                            traffic_text += f"{flag} {full_name} : {status} {status_icon}\n"
+                        
+                        traffic_text += "\n"
+                        has_data = True
                 
-                keyboard.append([InlineKeyboardButton("Back", callback_data="close_menu")])
-                reply_markup = InlineKeyboardMarkup(keyboard)
+                if not has_data:
+                    traffic_text = "📭 **No live traffic data available right now.**"
                 
-                header_msg = "📌 Select a country for FACEBOOK:"
-                await loading_msg.edit_text(header_msg, parse_mode="Markdown", reply_markup=reply_markup)
+                await loading_msg.edit_text(traffic_text, parse_mode="Markdown")
             else:
                 await loading_msg.edit_text("❌ **Failed to load live traffic.**", parse_mode="Markdown")
         except Exception as e:
