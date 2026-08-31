@@ -65,7 +65,7 @@ def get_country_info_by_range_or_text(range_str, country_field):
         "212": "MA", "249": "SD", "255": "TZ", "263": "ZW", "213": "DZ", 
         "591": "BO", "20": "EG", "233": "GH", "55": "BR", "92": "PK",
         "62": "ID", "84": "VN", "63": "PH", "90": "TR", "98": "IR", "977": "NP",
-        "382": "ME", "232": "SL"
+        "382": "ME", "232": "SL", "236": "CF"
     }
     
     for prefix, iso in sorted(prefix_to_iso.items(), key=lambda x: len(x[0]), reverse=True):
@@ -103,27 +103,28 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
                 if len(sent_otps_cache) > 1000:
                     sent_otps_cache.pop()
                     
-                flag, _, full_country_name = get_country_info_by_range_or_text(clean_num, "")
-                selected_service = user_target_services.get(target_chat_id, "Facebook")
+                flag, c_code, _ = get_country_info_by_range_or_text(clean_num, "")
+                selected_service = user_target_services.get(target_chat_id, "FACEBOOK")
                 
-                # Image style matching format
+                # Exact Screenshot Layout Style
                 msg_text = (
-                    f"⚔️ **{selected_service} Received.**\n"
-                    f"❓ {flag} {full_country_name}\n"
-                    f"📞 `+{clean_num}`"
+                    f"🔔 **NEW VERIFICATION CODE RECEIVED**\n"
+                    f"━━━━━━━━━━━━━━━━━━━\n"
+                    f"🌍 Country: {flag} `{c_code}`\n"
+                    f"📱 Number: `+{clean_num}`\n"
+                    f"📌 Service: 📘 `{selected_service}`\n"
+                    f"🔑 OTP Code: `{otp_text}`\n"
+                    f"━━━━━━━━━━━━━━━━━━━\n"
+                    f"⚡ *Status: Successfully Delivered*"
                 )
                 
-                # Inline keyboard button for Code copy style
-                keyboard = [[InlineKeyboardButton(f"🔑 {otp_text}", callback_data=f"copy_code_{otp_text}")] ]
-                reply_markup = InlineKeyboardMarkup(keyboard)
-                
                 try:
-                    await context.bot.send_message(chat_id=target_chat_id, text=msg_text, parse_mode="Markdown", reply_markup=reply_markup)
+                    await context.bot.send_message(chat_id=target_chat_id, text=msg_text, parse_mode="Markdown")
                 except:
                     pass
                 
                 try:
-                    await context.bot.send_message(chat_id=OTP_GROUP_CHAT_ID, text=msg_text, parse_mode="Markdown", reply_markup=reply_markup)
+                    await context.bot.send_message(chat_id=OTP_GROUP_CHAT_ID, text=msg_text, parse_mode="Markdown")
                 except:
                     pass
     except:
@@ -268,7 +269,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         
                         for c_name, info in sorted_countries:
                             total_otp = len(info["ranges"])
-                            if total_otp < 3:  # STRICT FILTER: Only keep High Traffic (>= 3)
+                            if total_otp < 3:
                                 continue
                             
                             btn_text = f"{info['flag']} {c_name} - {total_otp} OTP [HIGH 🟢]"
@@ -279,7 +280,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         break
                 
                 if not has_data:
-                    await loading_msg.edit_text("📭 **No High Traffic ranges available for Facebook right now.**", parse_mode="Markdown")
+                    await loading_msg.edit_text("📭 **No High Traffic ranges available right now.**", parse_mode="Markdown")
                     return
                 
                 keyboard.append([InlineKeyboardButton("Close", callback_data="close_menu")])
@@ -357,8 +358,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     if number_to_user_map.get(clean_num) == chat_id:
                         raw_msg = item.get('message', '')
                         otp_text = extract_pure_code(raw_msg)
-                        flag, _, full_name = get_country_info_by_range_or_text(clean_num, "")
-                        msg += f"❓ {flag} {full_name} | `+{clean_num}` | 🔑 `{otp_text}`\n"
+                        flag, c_code, _ = get_country_info_by_range_or_text(clean_num, "")
+                        msg += f"🔔 {flag} `{c_code}` | `+{clean_num}` | 🔑 `{otp_text}`\n"
             if len(msg) <= 30:
                 msg = "📭 **Inbox is clean!** No active verification codes found for your numbers."
             await loading_msg.edit_text(msg, parse_mode="Markdown")
@@ -386,14 +387,6 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer()
     except:
         pass
-
-    if data_code.startswith("copy_code_"):
-        code_val = data_code.split("_")[2]
-        try:
-            await query.answer(text=f"Code Copied: {code_val}", show_alert=False)
-        except:
-            pass
-        return
 
     if data_code.startswith("srv_") and not data_code.startswith("srv_list_") and not data_code.startswith("cnt_"):
         selected_srv = data_code.split("_")[1]
@@ -480,7 +473,7 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         sorted_countries = sorted(country_groups.items(), key=lambda x: len(x[1]["ranges"]), reverse=True)
                         for c_name, info in sorted_countries:
                             total_otp = len(info["ranges"])
-                            if total_otp < 3:  # STRICT FILTER: Only keep High Traffic (>= 3)
+                            if total_otp < 3:
                                 continue
                             
                             btn_text = f"{info['flag']} {c_name} - {total_otp} OTP [HIGH 🟢]"
