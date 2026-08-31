@@ -27,20 +27,6 @@ user_target_services = {}
 waiting_for_range = {}
 all_bot_users = set()
 
-def load_hot_ranges():
-    if os.path.exists("hot_ranges.txt"):
-        try:
-            with open("hot_ranges.txt", "r", encoding="utf-8") as f:
-                lines = []
-                for line in f:
-                    cleaned = line.strip().replace("XXX", "").replace("xxx", "")
-                    if cleaned:
-                        lines.append(cleaned)
-                return lines
-        except:
-            return []
-    return []
-
 def extract_pure_code(full_text):
     text = str(full_text).strip()
     match = re.search(r'\b\d{4,8}\b', text)
@@ -52,9 +38,22 @@ def get_country_info_by_range_or_text(range_str, country_field, raw_text=""):
     c_field = str(country_field).strip().upper()
     r_str = str(range_str).strip().replace("+", "")
     
+    # ISO কোড ম্যাপিং (পূর্ণাঙ্গ দেশের নাম সহ)
+    iso_to_name = {
+        "AM": "Armenia", "BD": "Bangladesh", "IN": "India", "US": "United States", 
+        "GB": "United Kingdom", "RU": "Russia", "TJ": "Tajikistan", "MG": "Madagascar", 
+        "UA": "Ukraine", "GN": "Guinea", "TG": "Togo", "CM": "Cameroon", 
+        "CI": "Ivory Coast", "CF": "Central Africa", "BJ": "Benin", "MY": "Malaysia", 
+        "MA": "Morocco", "SD": "Sudan", "TZ": "Tanzania", "ZW": "Zimbabwe", 
+        "DZ": "Algeria", "BO": "Bolivia", "EG": "Egypt", "GH": "Ghana", 
+        "BR": "Brazil", "PK": "Pakistan", "ID": "Indonesia", "VN": "Vietnam", 
+        "PH": "Philippines", "TR": "Turkey", "IR": "Iran", "NP": "Nepal", "ME": "Montenegro"
+    }
+
     if len(c_field) == 2 and c_field.isalpha():
         flag = ''.join([chr(ord(char) + 127397) for char in c_field])
-        return flag, c_field, c_field
+        full_name = iso_to_name.get(c_field, c_field)
+        return flag, c_field, full_name
         
     prefix_to_iso = {
         "374": "AM", "880": "BD", "91": "IN", "1": "US", "44": "GB", "7": "RU", 
@@ -69,9 +68,10 @@ def get_country_info_by_range_or_text(range_str, country_field, raw_text=""):
     for prefix, iso in sorted(prefix_to_iso.items(), key=lambda x: len(x[0]), reverse=True):
         if r_str.startswith(prefix):
             flag = ''.join([chr(ord(char) + 127397) for char in iso])
-            return flag, iso, iso
+            full_name = iso_to_name.get(iso, iso)
+            return flag, iso, full_name
 
-    return "🌍", c_field if c_field else "INT", "INTERNATIONAL"
+    return "🌍", c_field if c_field else "INT", "International"
 
 async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
     try:
@@ -204,7 +204,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         for r_raw in ranges:
                             r_str = str(r_raw).replace("XXX", "").replace("xxx", "").strip()
                             flag, c_code, full_name = get_country_info_by_range_or_text(r_str, "")
-                            display_name = f"{full_name}"
+                            display_name = f"{flag} {full_name}"
                             
                             if display_name not in country_groups:
                                 country_groups[display_name] = []
@@ -283,7 +283,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             await loading_msg.edit_text(f"⚠️ **Gateway Timeout:** Failed to fetch numbers. Error: `{e}`", parse_mode="Markdown")
 
-    # শুধু FACEBOOK এবং WHATSAPP দেখানোর জন্য ফিল্টার করা হয়েছে
     elif text == "📱 Get Number":
         loading_msg = await update.message.reply_text("⌛ **Loading services...**", parse_mode="Markdown")
         try:
@@ -379,7 +378,7 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         for r_raw in ranges:
                             r_str = str(r_raw).replace("XXX", "").replace("xxx", "").strip()
                             flag, c_code, full_name = get_country_info_by_range_or_text(r_str, "")
-                            display_name = f"{full_name}"
+                            display_name = f"{flag} {full_name}"
                             
                             if display_name not in country_groups:
                                 country_groups[display_name] = []
