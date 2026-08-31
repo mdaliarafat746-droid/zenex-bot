@@ -250,10 +250,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             pass
         
         if len(services_list) > 0:
+            # শুধুমাত্র আপনার পছন্দের সার্ভিসগুলো এখানে রাখুন
+            allowed_services = ["WHATSAPP", "FACEBOOK", "INSTAGRAM", "MICROSOFT"]
+            
             keyboard = []
             for s_item in services_list:
                 sid = str(s_item.get('sid', 'UNKNOWN')).strip().upper()
-                keyboard.append([InlineKeyboardButton(f"{sid}", callback_data=f"srv_menu_{sid}")])
+                if sid in allowed_services:
+                    keyboard.append([InlineKeyboardButton(f"{sid}", callback_data=f"srv_menu_{sid}")])
             
             keyboard.append([InlineKeyboardButton("Close", callback_data="close_menu")])
             reply_markup = InlineKeyboardMarkup(keyboard)
@@ -355,10 +359,12 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
             r1 = requests.get(f'{BASE_URL}/liveaccess', headers={'mauthapi': PANEL_API_KEY}, timeout=5).json()
             if r1.get('meta', {}).get('code') == 200:
                 services_list = r1.get('data', {}).get('services', [])
+                allowed_services = ["WHATSAPP", "FACEBOOK", "INSTAGRAM", "MICROSOFT"]
                 keyboard = []
                 for s_item in services_list:
                     sid = str(s_item.get('sid', 'UNKNOWN')).strip().upper()
-                    keyboard.append([InlineKeyboardButton(f"{sid}", callback_data=f"srv_menu_{sid}")])
+                    if sid in allowed_services:
+                        keyboard.append([InlineKeyboardButton(f"{sid}", callback_data=f"srv_menu_{sid}")])
                 
                 keyboard.append([InlineKeyboardButton("Close", callback_data="close_menu")])
                 reply_markup = InlineKeyboardMarkup(keyboard)
