@@ -125,7 +125,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     all_bot_users.add(chat_id)
 
-    # এখানে "📊 Live Traffic" বাটনটি অ্যাড করা হয়েছে
     keyboard = [
         [KeyboardButton("📞 Get API Number"), KeyboardButton("⚙️ Set Range")],
         [KeyboardButton("📱 Get Number"), KeyboardButton("🛠️ Select Service")],
@@ -189,30 +188,36 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # লাইভ ট্রাফিক হ্যান্ডলার
+    # শুধুমাত্র ফেসবুক লাইভ ট্রাফিক দেখানোর লজিক
     if text == "📊 Live Traffic":
-        loading_msg = await update.message.reply_text("⌛ **Fetching Live Traffic...**", parse_mode="Markdown")
+        loading_msg = await update.message.reply_text("⌛ **Fetching Facebook Live Traffic...**", parse_mode="Markdown")
         try:
             res = requests.get(f'{BASE_URL}/liveaccess', headers={'mauthapi': PANEL_API_KEY}, timeout=5).json()
             if res.get('meta', {}).get('code') == 200:
                 services_list = res.get('data', {}).get('services', [])
                 
-                traffic_text = "🔥 **10 Minute LIVE Traffic**\n\n"
+                traffic_text = ""
+                found_fb = False
+                
                 for s_item in services_list:
                     sid = str(s_item.get('sid', '')).strip().upper()
-                    ranges = s_item.get('ranges', [])
-                    if ranges:
-                        traffic_text += f"📘 **{sid} ({len(ranges)})**\n"
-                        for r in ranges[:2]:
+                    if sid == "FACEBOOK":
+                        found_fb = True
+                        ranges = s_item.get('ranges', [])
+                        traffic_text = f"🔥 **10 Minute LIVE Traffic (FACEBOOK)**\n\n"
+                        traffic_text += f"📘 **FACEBOOK ({len(ranges)})**\n"
+                        for r in ranges[:10]: # সর্বোচ্চ ১০টি দেশের ট্রাফিক দেখাবে
                             flag, c_code, _ = get_country_info_by_range_or_text(r, "")
                             traffic_text += f"  {flag} {c_code} : ACTIVE 🟢\n"
-                        traffic_text += "\n"
+                        break
                 
-                traffic_text += "🕒 Updated just now"
+                if not found_fb:
+                    traffic_text = "🔥 **10 Minute LIVE Traffic (FACEBOOK)**\n\n❌ **No traffic data found for Facebook right now.**"
+                else:
+                    traffic_text += "\n🕒 Updated just now"
                 
                 keyboard = [
                     [InlineKeyboardButton("Explore Facebook Range", callback_data="srv_menu_FACEBOOK")],
-                    [InlineKeyboardButton("Explore Instagram Range", callback_data="srv_menu_INSTAGRAM")],
                     [InlineKeyboardButton("Close", callback_data="close_menu")]
                 ]
                 reply_markup = InlineKeyboardMarkup(keyboard)
