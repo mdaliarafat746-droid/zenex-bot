@@ -121,6 +121,38 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
     except:
         pass
 
+async def live_traffic_background_task(context: ContextTypes.DEFAULT_TYPE):
+    """প্যানেل থেকে লাইভ ট্রাফিক ফেচ করে অ্যাডমিন বা নির্দিষ্ট গ্রুপে পাঠানোর জন্য ব্যাকগ্রাউন্ড জব"""
+    try:
+        res = requests.get(f'{BASE_URL}/liveaccess', headers={'mauthapi': PANEL_API_KEY}, timeout=5).json()
+        if res.get('meta', {}).get('code') == 200:
+            services_list = res.get('data', {}).get('services', [])
+            
+            traffic_text = "🔥 **10 Minute LIVE Traffic**\n\n"
+            for s_item in services_list:
+                sid = str(s_item.get('sid', '')).strip().upper()
+                ranges = s_item.get('ranges', [])
+                if ranges:
+                    traffic_text = traffic_text + f"📘 **{sid} {len(ranges)}**\n"
+                    # প্রথম কয়েকটি দেশের স্ট্যাটাস দেখানোর জন্য
+                    for r in ranges[:3]:
+                        flag, c_code, _ = get_country_info_by_range_or_text(r, "")
+                        traffic_text = traffic_text + f"🇲🇬 {c_code} : HIGH 🟢\n"
+                    traffic_text = traffic_text + "\n"
+            
+            traffic_text = traffic_text + "🕒 Updated just now"
+            
+            keyboard = [
+                [InlineKeyboardButton("Explore Facebook Range", callback_data="srv_menu_FACEBOOK")],
+                [InlineKeyboardButton("Explore Instagram Range", callback_data="srv_menu_INSTAGRAM")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            # আপনি চাইলে এটি OTP_GROUP_CHAT_ID কিংবা ADMIN_CHAT_ID তে পাঠাতে পারেন
+            # await context.bot.send_message(chat_id=ADMIN_CHAT_ID, text=traffic_text, parse_mode="Markdown", reply_markup=reply_markup)
+    except:
+        pass
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     all_bot_users.add(chat_id)
@@ -250,9 +282,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             pass
         
         if len(services_list) > 0:
-            # শুধুমাত্র আপনার পছন্দের সার্ভিসগুলো এখানে রাখুন
             allowed_services = ["WHATSAPP", "FACEBOOK", "INSTAGRAM", "MICROSOFT"]
-            
             keyboard = []
             for s_item in services_list:
                 sid = str(s_item.get('sid', 'UNKNOWN')).strip().upper()
