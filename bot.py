@@ -188,40 +188,45 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # শুধুমাত্র ফেসবুক লাইভ ট্রাফিক দেখানোর লজিক
+    # স্ক্রিনশটের স্টাইলে ফেসবুকের কান্ট্রি লিস্ট দেখানোর অংশ
     if text == "📊 Live Traffic":
-        loading_msg = await update.message.reply_text("⌛ **Fetching Facebook Live Traffic...**", parse_mode="Markdown")
+        loading_msg = await update.message.reply_text("⌛ **Loading Facebook Live Traffic...**", parse_mode="Markdown")
         try:
             res = requests.get(f'{BASE_URL}/liveaccess', headers={'mauthapi': PANEL_API_KEY}, timeout=5).json()
             if res.get('meta', {}).get('code') == 200:
                 services_list = res.get('data', {}).get('services', [])
-                
-                traffic_text = ""
-                found_fb = False
+                keyboard = []
                 
                 for s_item in services_list:
                     sid = str(s_item.get('sid', '')).strip().upper()
                     if sid == "FACEBOOK":
-                        found_fb = True
                         ranges = s_item.get('ranges', [])
-                        traffic_text = f"🔥 **10 Minute LIVE Traffic (FACEBOOK)**\n\n"
-                        traffic_text += f"📘 **FACEBOOK ({len(ranges)})**\n"
-                        for r in ranges[:10]: # সর্বোচ্চ ১০টি দেশের ট্রাফিক দেখাবে
-                            flag, c_code, _ = get_country_info_by_range_or_text(r, "")
-                            traffic_text += f"  {flag} {c_code} : ACTIVE 🟢\n"
+                        # কান্ট্রি অনুযায়ী রেঞ্জ বা কাউন্ট গ্রুপ করা
+                        country_counts = {}
+                        for r_raw in ranges:
+                            r_str = str(r_raw).replace("XXX", "").replace("xxx", "").strip()
+                            flag, c_code, full_name = get_country_info_by_range_or_text(r_str, "")
+                            display_name = f"{full_name} ({c_code})"
+                            country_counts[display_name] = country_counts.get(display_name, 0) + 1
+                        
+                        # বেশি থেকে কম অর্ডারে সাজানো
+                        sorted_countries = sorted(country_counts.items(), key=lambda x: x[1], reverse=True)
+                        
+                        for c_name, count in sorted_countries:
+                            btn_text = f"{c_name} - {count} OTP"
+                            # প্রথম রেঞ্জটি ব্যাকএন্ডে পাস করার জন্য
+                            sample_rid = [str(r).replace("XXX", "").replace("xxx", "").strip() for r in ranges if str(r).startswith(get_country_info_by_range_or_text(r, c_name.split('(')[1].split(')')[0])[1])][0] if ranges else ""
+                            keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"get3_{sample_rid}_{c_name.split('(')[1].split(')')[0]}")])
                         break
                 
-                if not found_fb:
-                    traffic_text = "🔥 **10 Minute LIVE Traffic (FACEBOOK)**\n\n❌ **No traffic data found for Facebook right now.**"
-                else:
-                    traffic_text += "\n🕒 Updated just now"
-                
-                keyboard = [
-                    [InlineKeyboardButton("Explore Facebook Range", callback_data="srv_menu_FACEBOOK")],
-                    [InlineKeyboardButton("Close", callback_data="close_menu")]
-                ]
+                keyboard.append([InlineKeyboardButton("Back", callback_data="close_menu")])
                 reply_markup = InlineKeyboardMarkup(keyboard)
-                await loading_msg.edit_text(traffic_text, parse_mode="Markdown", reply_markup=reply_markup)
+                
+                header_msg = (
+                    f"📊 **Explore Service:** 📘 **Facebook**\n\n"
+                    f"Select a country to view available ranges:"
+                )
+                await loading_msg.edit_text(header_msg, parse_mode="Markdown", reply_markup=reply_markup)
             else:
                 await loading_msg.edit_text("❌ **Failed to load live traffic.**", parse_mode="Markdown")
         except Exception as e:
