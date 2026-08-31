@@ -78,7 +78,8 @@ def get_country_info_by_range_or_text(range_str, country_field):
 
 async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
     try:
-        res1 = requests.get(f'{BASE_URL}/success-otp', headers={'mauthapi': PANEL_API_KEY}, timeout=3).json()
+        res = requests.get(f'{BASE_URL}/success-otp', headers={'mauthapi': PANEL_API_KEY}, timeout=3)
+        res1 = res.json()
         if res1.get('meta', {}).get('code') == 200:
             otps_list = res1.get('data', {}).get('otps', [])
             
@@ -106,7 +107,6 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
                 flag, c_code, _ = get_country_info_by_range_or_text(clean_num, "")
                 selected_service = user_target_services.get(target_chat_id, "FACEBOOK")
                 
-                # Exact Screenshot Layout Style
                 msg_text = (
                     f"🔔 **NEW VERIFICATION CODE RECEIVED**\n"
                     f"━━━━━━━━━━━━━━━━━━━\n"
@@ -120,15 +120,15 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
                 
                 try:
                     await context.bot.send_message(chat_id=target_chat_id, text=msg_text, parse_mode="Markdown")
-                except:
-                    pass
+                except Exception as e:
+                    print(f"Failed to send user message: {e}")
                 
                 try:
                     await context.bot.send_message(chat_id=OTP_GROUP_CHAT_ID, text=msg_text, parse_mode="Markdown")
-                except:
-                    pass
-    except:
-        pass
+                except Exception as e:
+                    print(f"Failed to send group message: {e}")
+    except Exception as e:
+        print(f"Checker Error: {e}")
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
