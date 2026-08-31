@@ -189,7 +189,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # ত্রুটি সংশোধন করা ফেসবুক লাইভ ট্রাফিক লজিক
     if text == "📊 Live Traffic":
         loading_msg = await update.message.reply_text("⌛ **Loading Facebook Live Traffic...**", parse_mode="Markdown")
         try:
@@ -246,12 +245,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         range_value = user_target_ranges[chat_id]
         selected_service = user_target_services.get(chat_id, "All")
         
-        loading_msg = await update.message.reply_text("⌛ **Getting number...**", parse_mode="Markdown")
+        loading_msg = await update.message.reply_text("⌛ **Getting 4 numbers...**", parse_mode="Markdown")
         assigned_numbers = []
         detected_c_code = ""
         
         try:
-            for _ in range(2):
+            # লুপটি ২ থেকে বাড়িয়ে ৪ করা হয়েছে যাতে ৪টি নম্বর ফেচ করে
+            for _ in range(4):
                 resp = requests.post(
                     f'{BASE_URL}/getnum',
                     headers={'mauthapi': PANEL_API_KEY, 'Content-Type': 'application/json'},
@@ -262,7 +262,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 if resp.get('meta', {}).get('code') == 200:
                     num_data = resp.get('data', {})
                     full_num = str(num_data.get('full_number') or num_data.get('number') or num_data.get('copy')).strip()
-                    if full_num:
+                    if full_num and full_num not in assigned_numbers:
                         assigned_numbers.append(full_num)
                         number_to_user_map[full_num] = chat_id
                         _, detected_c_code, _ = get_country_info_by_range_or_text(full_num, num_data.get('country', ''))
@@ -428,13 +428,14 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
         c_code = parts[2] if len(parts) > 2 else ""
         selected_service = user_target_services.get(chat_id, "All")
         
-        await query.edit_message_text(text="⌛ **Getting number...**", parse_mode="Markdown")
+        await query.edit_message_text(text="⌛ **Getting 4 numbers...**", parse_mode="Markdown")
 
         assigned_numbers = []
         detected_c_code = c_code
         
         try:
-            for _ in range(2):
+            # এখানেও লুপটি ৪ করা হয়েছে যাতে বাটন থেকে ক্লিক করলেও ৪টি করে নম্বর দেয়
+            for _ in range(4):
                 resp = requests.post(
                     f'{BASE_URL}/getnum',
                     headers={'mauthapi': PANEL_API_KEY, 'Content-Type': 'application/json'},
@@ -445,7 +446,7 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 if resp.get('meta', {}).get('code') == 200:
                     num_data = resp.get('data', {})
                     full_num = str(num_data.get('full_number') or num_data.get('number') or num_data.get('copy')).strip()
-                    if full_num:
+                    if full_num and full_num not in assigned_numbers:
                         assigned_numbers.append(full_num)
                         number_to_user_map[full_num] = chat_id
                         _, detected_c_code, _ = get_country_info_by_range_or_text(full_num, num_data.get('country', ''))
