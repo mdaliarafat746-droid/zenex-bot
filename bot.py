@@ -286,7 +286,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 
                 if resp.get('meta', {}).get('code') == 200:
                     num_data = resp.get('data', {})
-                    raw_full_num = str(num_data.get('full_number') or num_data.get('number') or num_data.get('copy')).strip()
+                    # প্যানেল থেকে আসা যেকোনো ফিল্ড থেকে নাম্বার সংগ্রহ করার ব্যবস্থা
+                    raw_full_num = str(num_data.get('number') or num_data.get('full_number') or num_data.get('copy') or '').strip()
                     clean_full_num = get_clean_digits(raw_full_num)
                     
                     if clean_full_num and clean_full_num not in assigned_numbers:
@@ -510,7 +511,7 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 
                 if resp.get('meta', {}).get('code') == 200:
                     num_data = resp.get('data', {})
-                    raw_full_num = str(num_data.get('full_number') or num_data.get('number') or num_data.get('copy')).strip()
+                    raw_full_num = str(num_data.get('number') or num_data.get('full_number') or num_data.get('copy') or '').strip()
                     clean_full_num = get_clean_digits(raw_full_num)
                     
                     if clean_full_num and clean_full_num not in assigned_numbers:
