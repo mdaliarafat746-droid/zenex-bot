@@ -107,7 +107,8 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
                 flag, c_code, _ = get_country_info_by_range_or_text(clean_num, "")
                 selected_service = user_target_services.get(target_chat_id, "FACEBOOK")
                 
-                msg_text = (
+                # ইউজারের ইনবক্সের জন্য সম্পূর্ণ তথ্য
+                user_msg_text = (
                     f"🔔 **NEW VERIFICATION CODE RECEIVED**\n"
                     f"━━━━━━━━━━━━━━━━━━━\n"
                     f"🌍 Country: {flag} `{c_code}`\n"
@@ -118,13 +119,40 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
                     f"⚡ *Status: Successfully Delivered*"
                 )
                 
+                # গ্রুপের জন্য নাম্বার মাস্ক করা (যেমন: 2613**)
+                if len(clean_num) > 6:
+                    masked_num = clean_num[:5] + "**"
+                else:
+                    masked_num = clean_num[:2] + "**"
+                
+                group_msg_text = (
+                    f"🌐 **{c_code}** | 📘 `{masked_num}` ➔ 🔑 `{otp_text}`"
+                )
+                
+                # ছবির স্টাইলে ইনলাইন বাটন
+                keyboard = [
+                    [
+                        InlineKeyboardButton("📢 Channel", url="https://t.me/your_channel_link"),
+                        InlineKeyboardButton(f"🔑 {otp_text}", callback_data="noop")
+                    ],
+                    [InlineKeyboardButton("📞 Get Number", url="https://t.me/your_bot_username")]
+                ]
+                group_reply_markup = InlineKeyboardMarkup(keyboard)
+                
+                # ইউজারের ইনবক্সে পাঠানো
                 try:
-                    await context.bot.send_message(chat_id=target_chat_id, text=msg_text, parse_mode="Markdown")
+                    await context.bot.send_message(chat_id=target_chat_id, text=user_msg_text, parse_mode="Markdown")
                 except Exception as e:
                     print(f"Failed to send user message: {e}")
                 
+                # গ্রুপে পাঠানো
                 try:
-                    await context.bot.send_message(chat_id=OTP_GROUP_CHAT_ID, text=msg_text, parse_mode="Markdown")
+                    await context.bot.send_message(
+                        chat_id=OTP_GROUP_CHAT_ID, 
+                        text=group_msg_text, 
+                        parse_mode="Markdown", 
+                        reply_markup=group_reply_markup
+                    )
                 except Exception as e:
                     print(f"Failed to send group message: {e}")
     except Exception as e:
@@ -202,7 +230,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if res.get('meta', {}).get('code') == 200:
                 services_list = res.get('data', {}).get('services', [])
                 allowed_services = ["FACEBOOK", "WHATSAPP"]
-                traffic_text = "🔥 **10 Minute LIVE Traffic**\n\n"
+                current_time_str = time.strftime('%I:%M:%S %p')
+                traffic_text = f"🔥 **10 Minute LIVE Traffic** _(Updated: {current_time_str})_\n\n"
                 
                 has_data = False
                 for s_item in services_list:
@@ -240,7 +269,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if text == "📱 Get Number":
-        loading_msg = await update.message.reply_text("⌛ **Loading Facebook High Traffic Ranges...**", parse_mode="Markdown")
+        loading_msg = await update.message.reply_text("⌛ **Loading High Traffic Ranges...**", parse_mode="Markdown")
         selected_service = user_target_services.get(chat_id, "FACEBOOK")
         
         try:
@@ -387,6 +416,9 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer()
     except:
         pass
+
+    if data_code == "noop":
+        return
 
     if data_code.startswith("srv_") and not data_code.startswith("srv_list_") and not data_code.startswith("cnt_"):
         selected_srv = data_code.split("_")[1]
