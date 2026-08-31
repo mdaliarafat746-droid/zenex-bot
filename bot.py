@@ -190,7 +190,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if text == "📊 Live Traffic":
-        loading_msg = await update.message.reply_text("⌛ **Loading Facebook Live Traffic...**", parse_mode="Markdown")
+        loading_msg = await update.message.reply_text("⌛ **Loading Live Traffic...**", parse_mode="Markdown")
         try:
             res = requests.get(f'{BASE_URL}/liveaccess', headers={'mauthapi': PANEL_API_KEY}, timeout=5).json()
             if res.get('meta', {}).get('code') == 200:
@@ -220,14 +220,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             c_code_val = c_name.split('(')[-1].replace(')', '').strip()
                             
                             btn_text = f"{c_name} - {count} OTP"
-                            keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"get3_{sample_rid}_{c_code_val}")])
+                            keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"get4_{sample_rid}_{c_code_val}")])
                         break
                 
                 keyboard.append([InlineKeyboardButton("Back", callback_data="close_menu")])
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 
                 header_msg = (
-                    f"📊 **Explore Service:** 📘 **Facebook**\n\n"
+                    f"📊 **Explore Service:** 📘 **FACEBOOK**\n\n"
                     f"Select a country to view available ranges:"
                 )
                 await loading_msg.edit_text(header_msg, parse_mode="Markdown", reply_markup=reply_markup)
@@ -250,7 +250,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         detected_c_code = ""
         
         try:
-            # লুপটি ২ থেকে বাড়িয়ে ৪ করা হয়েছে যাতে ৪টি নম্বর ফেচ করে
             for _ in range(4):
                 resp = requests.post(
                     f'{BASE_URL}/getnum',
@@ -290,29 +289,51 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             await loading_msg.edit_text(f"⚠️ **Gateway Timeout:** Failed to fetch numbers. Error: `{e}`", parse_mode="Markdown")
 
+    # স্ক্রিনশটের মতো হুহু হুবহু স্টাইল: "GET NUMBER" এ ক্লিক করলেই ফেসবুকের জন্য দেশের তালিকা দেখাবে
     elif text == "📱 Get Number":
-        loading_msg = await update.message.reply_text("⌛ **Getting active services...**", parse_mode="Markdown")
-        services_list = []
+        loading_msg = await update.message.reply_text("⌛ **Loading countries for FACEBOOK...**", parse_mode="Markdown")
         try:
-            r1 = requests.get(f'{BASE_URL}/liveaccess', headers={'mauthapi': PANEL_API_KEY}, timeout=5).json()
-            if r1.get('meta', {}).get('code') == 200:
-                services_list = r1.get('data', {}).get('services', [])
-        except:
-            pass
-        
-        if len(services_list) > 0:
-            allowed_services = ["WHATSAPP", "FACEBOOK", "INSTAGRAM", "MICROSOFT"]
-            keyboard = []
-            for s_item in services_list:
-                sid = str(s_item.get('sid', 'UNKNOWN')).strip().upper()
-                if sid in allowed_services:
-                    keyboard.append([InlineKeyboardButton(f"{sid}", callback_data=f"srv_menu_{sid}")])
-            
-            keyboard.append([InlineKeyboardButton("Close", callback_data="close_menu")])
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            await loading_msg.edit_text("📌 **Select a service:**", parse_mode="Markdown", reply_markup=reply_markup)
-        else:
-            await loading_msg.edit_text("❌ **No active services found.**", parse_mode="Markdown")
+            res = requests.get(f'{BASE_URL}/liveaccess', headers={'mauthapi': PANEL_API_KEY}, timeout=5).json()
+            if res.get('meta', {}).get('code') == 200:
+                services_list = res.get('data', {}).get('services', [])
+                keyboard = []
+                
+                for s_item in services_list:
+                    sid = str(s_item.get('sid', '')).strip().upper()
+                    if sid == "FACEBOOK":
+                        ranges = s_item.get('ranges', [])
+                        country_groups = {}
+                        
+                        for r_raw in ranges:
+                            r_str = str(r_raw).replace("XXX", "").replace("xxx", "").strip()
+                            flag, c_code, full_name = get_country_info_by_range_or_text(r_str, "")
+                            display_name = f"{flag} {full_name}"
+                            
+                            if display_name not in country_groups:
+                                country_groups[display_name] = []
+                            country_groups[display_name].append(r_str)
+                        
+                        sorted_groups = sorted(country_groups.items(), key=lambda x: len(x[1]), reverse=True)
+                        
+                        for c_name, r_list in sorted_groups:
+                            sample_rid = r_list[0] if r_list else ""
+                            c_code_val = get_country_info_by_range_or_text(sample_rid, "")[1]
+                            
+                            # স্ক্রিনশটের স্টাইল: দেশের নাম - ০.৪ টাকা বা ওটিপি কাউন্ট
+                            btn_text = f"{c_name} - 0.4 TK/OTP"
+                            keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"get4_{sample_rid}_{c_code_val}")])
+                        break
+                
+                keyboard.append([InlineKeyboardButton("Back", callback_data="close_menu")])
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                
+                header_msg = "📌 Select a country for FACEBOOK:"
+                await loading_msg.edit_text(header_msg, parse_mode="Markdown", reply_markup=reply_markup)
+            else:
+                await loading_msg.edit_text("❌ **Failed to load countries.**", parse_mode="Markdown")
+        except Exception as e:
+            await loading_msg.edit_text(f"⚠️ **Error:** `{e}`", parse_mode="Markdown")
+        return
             
     elif text == "📩 Live OTP Inbox":
         loading_msg = await update.message.reply_text("⌛ **Checking inbox...**", parse_mode="Markdown")
@@ -366,63 +387,13 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    if data_code.startswith("srv_menu_"):
-        chosen_sid = data_code.replace("srv_menu_", "")
+    if data_code == "close_menu":
         try:
-            r1 = requests.get(f'{BASE_URL}/liveaccess', headers={'mauthapi': PANEL_API_KEY}, timeout=5).json()
-            if r1.get('meta', {}).get('code') == 200:
-                services_list = r1.get('data', {}).get('services', [])
-                hot_list = load_hot_ranges()
-                keyboard = []
-                count = 0
-                
-                for s_item in services_list:
-                    if str(s_item.get('sid', '')).strip().upper() == chosen_sid:
-                        ranges = s_item.get('ranges', [])
-                        for rng_raw in ranges:
-                            rng = str(rng_raw).replace("XXX", "").replace("xxx", "").strip()
-                            flag, c_code, _ = get_country_info_by_range_or_text(rng, "")
-                            
-                            fire_tag = ""
-                            for hot in hot_list:
-                                if rng.startswith(hot) or hot.startswith(rng):
-                                    fire_tag = " 🔥"
-                                    break
-                            
-                            keyboard.append([InlineKeyboardButton(f"{flag} {rng_raw} | {chosen_sid}{fire_tag}", callback_data=f"get3_{rng}_{c_code}")])
-                            count += 1
-                            if count >= 30:
-                                break
-                        break
-                
-                keyboard.append([InlineKeyboardButton("🔙 Back to Services", callback_data="back_to_services")])
-                keyboard.append([InlineKeyboardButton("Close", callback_data="close_menu")])
-                reply_markup = InlineKeyboardMarkup(keyboard)
-                await query.edit_message_text(f"📌 **Ranges for {chosen_sid}:**", parse_mode="Markdown", reply_markup=reply_markup)
-        except:
-            await query.edit_message_text("❌ **Error loading ranges.**", parse_mode="Markdown")
-        return
-
-    if data_code == "back_to_services":
-        try:
-            r1 = requests.get(f'{BASE_URL}/liveaccess', headers={'mauthapi': PANEL_API_KEY}, timeout=5).json()
-            if r1.get('meta', {}).get('code') == 200:
-                services_list = r1.get('data', {}).get('services', [])
-                allowed_services = ["WHATSAPP", "FACEBOOK", "INSTAGRAM", "MICROSOFT"]
-                keyboard = []
-                for s_item in services_list:
-                    sid = str(s_item.get('sid', 'UNKNOWN')).strip().upper()
-                    if sid in allowed_services:
-                        keyboard.append([InlineKeyboardButton(f"{sid}", callback_data=f"srv_menu_{sid}")])
-                
-                keyboard.append([InlineKeyboardButton("Close", callback_data="close_menu")])
-                reply_markup = InlineKeyboardMarkup(keyboard)
-                await query.edit_message_text("📌 **Select a service:**", parse_mode="Markdown", reply_markup=reply_markup)
-        except:
             await query.message.delete()
-        return
+        except:
+            pass
 
-    if data_code.startswith("get3_") or data_code.startswith("chg_"):
+    if data_code.startswith("get4_") or data_code.startswith("chg_"):
         parts = data_code.split("_")
         range_value = parts[1]
         c_code = parts[2] if len(parts) > 2 else ""
@@ -434,7 +405,6 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
         detected_c_code = c_code
         
         try:
-            # এখানেও লুপটি ৪ করা হয়েছে যাতে বাটন থেকে ক্লিক করলেও ৪টি করে নম্বর দেয়
             for _ in range(4):
                 resp = requests.post(
                     f'{BASE_URL}/getnum',
@@ -456,10 +426,8 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 numbers_block = "".join([f"📱 `+{str(num).replace('+', '')}`\n" for num in assigned_numbers])
                 
                 keyboard = [[InlineKeyboardButton("🔄 Change Number", callback_data=f"chg_{range_value}_{final_c_code}")] ]
-                if data_code.startswith("get3_"):
-                    keyboard.append([InlineKeyboardButton("🔙 Back to Services", callback_data="back_to_services")])
-                
                 reply_markup = InlineKeyboardMarkup(keyboard)
+                
                 result_msg = (
                     f"✅ **API NUMBERS SUCCESSFULLY ASSIGNED**\n"
                     f"━━━━━━━━━━━━━━━━━━━\n"
@@ -475,12 +443,6 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await query.edit_message_text("❌ **Stock Exhausted:** No numbers available.", parse_mode="Markdown")
         except:
             await query.edit_message_text("⚠️ **Gateway Timeout:** Failed to fetch numbers.", parse_mode="Markdown")
-
-    elif data_code == "close_menu":
-        try:
-            await query.message.delete()
-        except:
-            pass
 
 def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
