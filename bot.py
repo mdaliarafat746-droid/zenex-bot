@@ -174,12 +174,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if text == "🛠️ Select Service":
         keyboard = [
-            [InlineKeyboardButton("WHATSAPP", callback_data="srv_WhatsApp"), InlineKeyboardButton("INSTAGRAM", callback_data="srv_Instagram")],
-            [InlineKeyboardButton("FACEBOOK", callback_data="srv_Facebook"), InlineKeyboardButton("MICROSOFT", callback_data="srv_Microsoft")],
-            [InlineKeyboardButton("🌐 All Services", callback_data="srv_All")]
+            [InlineKeyboardButton("WHATSAPP", callback_data="srv_WHATSAPP"), InlineKeyboardButton("FACEBOOK", callback_data="srv_FACEBOOK")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        current_srv = user_target_services.get(chat_id, "All")
+        current_srv = user_target_services.get(chat_id, "FACEBOOK")
         await update.message.reply_text(
             f"🛠️ **Select a service:**\n"
             f"📌 Current Selected Service: `{current_srv}`\n\n"
@@ -239,7 +237,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         
         range_value = user_target_ranges[chat_id]
-        selected_service = user_target_services.get(chat_id, "All")
+        selected_service = user_target_services.get(chat_id, "FACEBOOK")
         
         loading_msg = await update.message.reply_text("⌛ **Getting 4 numbers...**", parse_mode="Markdown")
         assigned_numbers = []
@@ -285,7 +283,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             await loading_msg.edit_text(f"⚠️ **Gateway Timeout:** Failed to fetch numbers. Error: `{e}`", parse_mode="Markdown")
 
-    # প্রথম স্ক্রিনশট অনুযায়ী: "GET NUMBER" ক্লিক করলে প্রথমে সব সার্ভিস দেখাবে (WORLDFIRST, MICROSOFT, FACEBOOK ইত্যাদি)
+    # শুধু FACEBOOK এবং WHATSAPP দেখানোর জন্য ফিল্টার করা হয়েছে
     elif text == "📱 Get Number":
         loading_msg = await update.message.reply_text("⌛ **Loading services...**", parse_mode="Markdown")
         try:
@@ -293,11 +291,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if res.get('meta', {}).get('code') == 200:
                 services_list = res.get('data', {}).get('services', [])
                 keyboard = []
+                allowed_services = ["FACEBOOK", "WHATSAPP"]
                 seen_services = set()
                 
                 for s_item in services_list:
                     sid = str(s_item.get('sid', '')).strip().upper()
-                    if sid and sid not in seen_services:
+                    if sid in allowed_services and sid not in seen_services:
                         seen_services.add(sid)
                         keyboard.append([InlineKeyboardButton(sid, callback_data=f"srv_list_{sid}")])
                 
@@ -335,7 +334,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"👤 **USER PROFILE INFORMATION**\n"
             f"━━━━━━━━━━━━━━━━━━━\n"
             f"🆔 **Telegram ID:** `{chat_id}`\n"
-            f"🛠️ **Preferred Service:** `{user_target_services.get(chat_id, 'All')}`\n"
+            f"🛠️ **Preferred Service:** `{user_target_services.get(chat_id, 'FACEBOOK')}`\n"
             f"📊 **Account Status:** `Active / Premium`\n"
             f"━━━━━━━━━━━━━━━━━━━"
         )
@@ -363,7 +362,6 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # সার্ভিস সিলেক্ট করলে ঐ সার্ভিসের আন্ডারে কান্ট্রি লিস্ট দেখাবে (দ্বিতীয় স্ক্রিনশটের মতো)
     if data_code.startswith("srv_list_"):
         chosen_sid = data_code.replace("srv_list_", "")
         try:
@@ -411,11 +409,12 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if res.get('meta', {}).get('code') == 200:
                 services_list = res.get('data', {}).get('services', [])
                 keyboard = []
+                allowed_services = ["FACEBOOK", "WHATSAPP"]
                 seen_services = set()
                 
                 for s_item in services_list:
                     sid = str(s_item.get('sid', '')).strip().upper()
-                    if sid and sid not in seen_services:
+                    if sid in allowed_services and sid not in seen_services:
                         seen_services.add(sid)
                         keyboard.append([InlineKeyboardButton(sid, callback_data=f"srv_list_{sid}")])
                 
@@ -432,12 +431,11 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except:
             pass
 
-    # কান্ট্রি বাটনে ক্লিক করলে ৪টি নম্বর অ্যাসাইন করবে
     if data_code.startswith("get4_") or data_code.startswith("chg_"):
         parts = data_code.split("_")
         range_value = parts[1]
         c_code = parts[2] if len(parts) > 2 else ""
-        selected_service = user_target_services.get(chat_id, "All")
+        selected_service = user_target_services.get(chat_id, "FACEBOOK")
         
         await query.edit_message_text(text="⌛ **Getting 4 numbers...**", parse_mode="Markdown")
 
