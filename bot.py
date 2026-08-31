@@ -139,32 +139,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await update.message.reply_text(welcome_text, parse_mode="Markdown", reply_markup=reply_markup)
 
-async def bot_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = update.effective_chat.id
-    if chat_id != ADMIN_CHAT_ID:
-        return
-    total_users = len(all_bot_users)
-    await update.message.reply_text(f"📊 **Total Unique Users:** `{total_users}`", parse_mode="Markdown")
-
-async def broadcast_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = update.effective_chat.id
-    if chat_id != ADMIN_CHAT_ID:
-        return
-    message_text = " ".join(context.args)
-    if not message_text:
-        await update.message.reply_text("⚠️ Please provide a message.", parse_mode="Markdown")
-        return
-    
-    status_msg = await update.message.reply_text("📢 **Broadcasting...**", parse_mode="Markdown")
-    success, fail = 0, 0
-    for uid in all_bot_users:
-        try:
-            await context.bot.send_message(chat_id=uid, text=f"📢 **ANNOUNCEMENT**\n\n{message_text}", parse_mode="Markdown")
-            success += 1
-        except:
-            fail += 1
-    await status_msg.edit_text(f"✅ **Done!** Sent: `{success}`, Failed: `{fail}`", parse_mode="Markdown")
-
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.text:
         return
@@ -222,7 +196,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         selected_service = user_target_services.get(chat_id, "All")
         
         loading_msg = await update.message.reply_text("⌛ **Getting number...**", parse_mode="Markdown")
-        
         assigned_numbers = []
         detected_c_code = ""
         
@@ -317,14 +290,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"━━━━━━━━━━━━━━━━━━━"
         )
         await update.message.reply_text(profile_msg, parse_mode="Markdown")
-    else:
-        if text.isdigit() and len(text) >= 3:
-            user_target_ranges[chat_id] = text.replace("XXX", "").replace("xxx", "").strip()
-            waiting_for_range[chat_id] = False
-            await update.message.reply_text(
-                f"✅ **Target Range/RID Auto-Saved:** `{text}`\n\nNow click on **'📞 Get API Number'** to fetch numbers.",
-                parse_mode="Markdown"
-            )
 
 async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -467,12 +432,10 @@ def main():
     app.job_queue.run_repeating(auto_otp_checker, interval=1, first=1)
     
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("stats", bot_stats))
-    app.add_handler(CommandHandler("broadcast", broadcast_message))
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
     app.add_handler(CallbackQueryHandler(button_click))
     
-    print("Bot is running successfully with interactive service selection menu...")
+    print("Bot is running successfully...")
     app.run_polling(drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
