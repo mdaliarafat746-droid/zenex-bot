@@ -121,46 +121,16 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
     except:
         pass
 
-async def live_traffic_background_task(context: ContextTypes.DEFAULT_TYPE):
-    """প্যানেل থেকে লাইভ ট্রাফিক ফেচ করে অ্যাডমিন বা নির্দিষ্ট গ্রুপে পাঠানোর জন্য ব্যাকগ্রাউন্ড জব"""
-    try:
-        res = requests.get(f'{BASE_URL}/liveaccess', headers={'mauthapi': PANEL_API_KEY}, timeout=5).json()
-        if res.get('meta', {}).get('code') == 200:
-            services_list = res.get('data', {}).get('services', [])
-            
-            traffic_text = "🔥 **10 Minute LIVE Traffic**\n\n"
-            for s_item in services_list:
-                sid = str(s_item.get('sid', '')).strip().upper()
-                ranges = s_item.get('ranges', [])
-                if ranges:
-                    traffic_text = traffic_text + f"📘 **{sid} {len(ranges)}**\n"
-                    # প্রথম কয়েকটি দেশের স্ট্যাটাস দেখানোর জন্য
-                    for r in ranges[:3]:
-                        flag, c_code, _ = get_country_info_by_range_or_text(r, "")
-                        traffic_text = traffic_text + f"🇲🇬 {c_code} : HIGH 🟢\n"
-                    traffic_text = traffic_text + "\n"
-            
-            traffic_text = traffic_text + "🕒 Updated just now"
-            
-            keyboard = [
-                [InlineKeyboardButton("Explore Facebook Range", callback_data="srv_menu_FACEBOOK")],
-                [InlineKeyboardButton("Explore Instagram Range", callback_data="srv_menu_INSTAGRAM")]
-            ]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            
-            # আপনি চাইলে এটি OTP_GROUP_CHAT_ID কিংবা ADMIN_CHAT_ID তে পাঠাতে পারেন
-            # await context.bot.send_message(chat_id=ADMIN_CHAT_ID, text=traffic_text, parse_mode="Markdown", reply_markup=reply_markup)
-    except:
-        pass
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     all_bot_users.add(chat_id)
 
+    # এখানে "📊 Live Traffic" বাটনটি অ্যাড করা হয়েছে
     keyboard = [
         [KeyboardButton("📞 Get API Number"), KeyboardButton("⚙️ Set Range")],
         [KeyboardButton("📱 Get Number"), KeyboardButton("🛠️ Select Service")],
-        [KeyboardButton("📩 Live OTP Inbox"), KeyboardButton("👤 Account Profile")]
+        [KeyboardButton("📊 Live Traffic"), KeyboardButton("📩 Live OTP Inbox")],
+        [KeyboardButton("👤 Account Profile")]
     ]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
     
@@ -189,7 +159,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if waiting_for_range.get(chat_id, False):
-        if text.startswith("📞") or text.startswith("📱") or text.startswith("🛠️") or text.startswith("📩") or text.startswith("👤") or text.startswith("⚙️"):
+        if text.startswith("📞") or text.startswith("📱") or text.startswith("🛠️") or text.startswith("📩") or text.startswith("👤") or text.startswith("⚙️") or text.startswith("📊"):
             waiting_for_range[chat_id] = False
             await update.message.reply_text("❌ **Range setting cancelled.** Please click buttons normally.", parse_mode="Markdown")
             return
@@ -217,6 +187,40 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="Markdown",
             reply_markup=reply_markup
         )
+        return
+
+    # লাইভ ট্রাফিক হ্যান্ডলার
+    if text == "📊 Live Traffic":
+        loading_msg = await update.message.reply_text("⌛ **Fetching Live Traffic...**", parse_mode="Markdown")
+        try:
+            res = requests.get(f'{BASE_URL}/liveaccess', headers={'mauthapi': PANEL_API_KEY}, timeout=5).json()
+            if res.get('meta', {}).get('code') == 200:
+                services_list = res.get('data', {}).get('services', [])
+                
+                traffic_text = "🔥 **10 Minute LIVE Traffic**\n\n"
+                for s_item in services_list:
+                    sid = str(s_item.get('sid', '')).strip().upper()
+                    ranges = s_item.get('ranges', [])
+                    if ranges:
+                        traffic_text += f"📘 **{sid} ({len(ranges)})**\n"
+                        for r in ranges[:2]:
+                            flag, c_code, _ = get_country_info_by_range_or_text(r, "")
+                            traffic_text += f"  {flag} {c_code} : ACTIVE 🟢\n"
+                        traffic_text += "\n"
+                
+                traffic_text += "🕒 Updated just now"
+                
+                keyboard = [
+                    [InlineKeyboardButton("Explore Facebook Range", callback_data="srv_menu_FACEBOOK")],
+                    [InlineKeyboardButton("Explore Instagram Range", callback_data="srv_menu_INSTAGRAM")],
+                    [InlineKeyboardButton("Close", callback_data="close_menu")]
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                await loading_msg.edit_text(traffic_text, parse_mode="Markdown", reply_markup=reply_markup)
+            else:
+                await loading_msg.edit_text("❌ **Failed to load live traffic.**", parse_mode="Markdown")
+        except Exception as e:
+            await loading_msg.edit_text(f"⚠️ **Error:** `{e}`", parse_mode="Markdown")
         return
 
     if text == "📞 Get API Number":
