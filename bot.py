@@ -266,14 +266,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         
                         for c_name, info in sorted_countries:
                             total_otp = len(info["ranges"])
-                            if total_otp < 3:  # Only allow high traffic ranges (>= 3)
+                            if total_otp < 3:  # STRICT FILTER: Only keep High Traffic (>= 3)
                                 continue
                             
                             btn_text = f"{info['flag']} {c_name} - {total_otp} OTP [HIGH 🟢]"
                             callback_val = f"cnt_{selected_service}_{info['c_code']}"
                             
                             keyboard.append([InlineKeyboardButton(btn_text, callback_data=callback_val)])
-                        has_data = True
+                            has_data = True
                         break
                 
                 if not has_data:
@@ -470,7 +470,7 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         sorted_countries = sorted(country_groups.items(), key=lambda x: len(x[1]["ranges"]), reverse=True)
                         for c_name, info in sorted_countries:
                             total_otp = len(info["ranges"])
-                            if total_otp < 3:  # Only allow high traffic ranges (>= 3)
+                            if total_otp < 3:  # STRICT FILTER: Only keep High Traffic (>= 3)
                                 continue
                             
                             btn_text = f"{info['flag']} {c_name} - {total_otp} OTP [HIGH 🟢]"
