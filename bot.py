@@ -206,7 +206,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         for r_raw in ranges:
                             r_str = str(r_raw).replace("XXX", "").replace("xxx", "").strip()
                             flag, c_code, full_name = get_country_info_by_range_or_text(r_str, "")
-                            display_name = f"{flag} {full_name} ({c_code})"
+                            display_name = f"{full_name}"
                             
                             if display_name not in country_groups:
                                 country_groups[display_name] = []
@@ -215,21 +215,17 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         sorted_groups = sorted(country_groups.items(), key=lambda x: len(x[1]), reverse=True)
                         
                         for c_name, r_list in sorted_groups:
-                            count = len(r_list)
                             sample_rid = r_list[0] if r_list else ""
-                            c_code_val = c_name.split('(')[-1].replace(')', '').strip()
+                            c_code_val = get_country_info_by_range_or_text(sample_rid, "")[1]
                             
-                            btn_text = f"{c_name} - {count} OTP"
+                            btn_text = f"{c_name} - 0.4 TK/OTP"
                             keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"get4_{sample_rid}_{c_code_val}")])
                         break
                 
                 keyboard.append([InlineKeyboardButton("Back", callback_data="close_menu")])
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 
-                header_msg = (
-                    f"📊 **Explore Service:** 📘 **FACEBOOK**\n\n"
-                    f"Select a country to view available ranges:"
-                )
+                header_msg = "📌 Select a country for FACEBOOK:"
                 await loading_msg.edit_text(header_msg, parse_mode="Markdown", reply_markup=reply_markup)
             else:
                 await loading_msg.edit_text("❌ **Failed to load live traffic.**", parse_mode="Markdown")
@@ -289,48 +285,28 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             await loading_msg.edit_text(f"⚠️ **Gateway Timeout:** Failed to fetch numbers. Error: `{e}`", parse_mode="Markdown")
 
-    # স্ক্রিনশটের মতো হুহু হুবহু স্টাইল: "GET NUMBER" এ ক্লিক করলেই ফেসবুকের জন্য দেশের তালিকা দেখাবে
+    # প্রথম স্ক্রিনশট অনুযায়ী: "GET NUMBER" ক্লিক করলে প্রথমে সব সার্ভিস দেখাবে (WORLDFIRST, MICROSOFT, FACEBOOK ইত্যাদি)
     elif text == "📱 Get Number":
-        loading_msg = await update.message.reply_text("⌛ **Loading countries for FACEBOOK...**", parse_mode="Markdown")
+        loading_msg = await update.message.reply_text("⌛ **Loading services...**", parse_mode="Markdown")
         try:
             res = requests.get(f'{BASE_URL}/liveaccess', headers={'mauthapi': PANEL_API_KEY}, timeout=5).json()
             if res.get('meta', {}).get('code') == 200:
                 services_list = res.get('data', {}).get('services', [])
                 keyboard = []
+                seen_services = set()
                 
                 for s_item in services_list:
                     sid = str(s_item.get('sid', '')).strip().upper()
-                    if sid == "FACEBOOK":
-                        ranges = s_item.get('ranges', [])
-                        country_groups = {}
-                        
-                        for r_raw in ranges:
-                            r_str = str(r_raw).replace("XXX", "").replace("xxx", "").strip()
-                            flag, c_code, full_name = get_country_info_by_range_or_text(r_str, "")
-                            display_name = f"{flag} {full_name}"
-                            
-                            if display_name not in country_groups:
-                                country_groups[display_name] = []
-                            country_groups[display_name].append(r_str)
-                        
-                        sorted_groups = sorted(country_groups.items(), key=lambda x: len(x[1]), reverse=True)
-                        
-                        for c_name, r_list in sorted_groups:
-                            sample_rid = r_list[0] if r_list else ""
-                            c_code_val = get_country_info_by_range_or_text(sample_rid, "")[1]
-                            
-                            # স্ক্রিনশটের স্টাইল: দেশের নাম - ০.৪ টাকা বা ওটিপি কাউন্ট
-                            btn_text = f"{c_name} - 0.4 TK/OTP"
-                            keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"get4_{sample_rid}_{c_code_val}")])
-                        break
+                    if sid and sid not in seen_services:
+                        seen_services.add(sid)
+                        keyboard.append([InlineKeyboardButton(sid, callback_data=f"srv_list_{sid}")])
                 
-                keyboard.append([InlineKeyboardButton("Back", callback_data="close_menu")])
+                keyboard.append([InlineKeyboardButton("Close", callback_data="close_menu")])
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 
-                header_msg = "📌 Select a country for FACEBOOK:"
-                await loading_msg.edit_text(header_msg, parse_mode="Markdown", reply_markup=reply_markup)
+                await loading_msg.edit_text("📌 Select a service:", parse_mode="Markdown", reply_markup=reply_markup)
             else:
-                await loading_msg.edit_text("❌ **Failed to load countries.**", parse_mode="Markdown")
+                await loading_msg.edit_text("❌ **Failed to load services.**", parse_mode="Markdown")
         except Exception as e:
             await loading_msg.edit_text(f"⚠️ **Error:** `{e}`", parse_mode="Markdown")
         return
@@ -376,7 +352,7 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except:
         pass
 
-    if data_code.startswith("srv_") and not data_code.startswith("srv_menu_"):
+    if data_code.startswith("srv_") and not data_code.startswith("srv_list_"):
         selected_srv = data_code.split("_")[1]
         user_target_services[chat_id] = selected_srv
         await query.edit_message_text(
@@ -387,12 +363,76 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
+    # সার্ভিস সিলেক্ট করলে ঐ সার্ভিসের আন্ডারে কান্ট্রি লিস্ট দেখাবে (দ্বিতীয় স্ক্রিনশটের মতো)
+    if data_code.startswith("srv_list_"):
+        chosen_sid = data_code.replace("srv_list_", "")
+        try:
+            res = requests.get(f'{BASE_URL}/liveaccess', headers={'mauthapi': PANEL_API_KEY}, timeout=5).json()
+            if res.get('meta', {}).get('code') == 200:
+                services_list = res.get('data', {}).get('services', [])
+                keyboard = []
+                
+                for s_item in services_list:
+                    sid = str(s_item.get('sid', '')).strip().upper()
+                    if sid == chosen_sid:
+                        ranges = s_item.get('ranges', [])
+                        country_groups = {}
+                        
+                        for r_raw in ranges:
+                            r_str = str(r_raw).replace("XXX", "").replace("xxx", "").strip()
+                            flag, c_code, full_name = get_country_info_by_range_or_text(r_str, "")
+                            display_name = f"{full_name}"
+                            
+                            if display_name not in country_groups:
+                                country_groups[display_name] = []
+                            country_groups[display_name].append(r_str)
+                        
+                        sorted_groups = sorted(country_groups.items(), key=lambda x: len(x[1]), reverse=True)
+                        
+                        for c_name, r_list in sorted_groups:
+                            sample_rid = r_list[0] if r_list else ""
+                            c_code_val = get_country_info_by_range_or_text(sample_rid, "")[1]
+                            
+                            btn_text = f"{c_name} - 0.4 TK/OTP"
+                            keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"get4_{sample_rid}_{c_code_val}")])
+                        break
+                
+                keyboard.append([InlineKeyboardButton("Back", callback_data="back_to_services_main")])
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                
+                await query.edit_message_text(f"📌 Select a country for {chosen_sid}:", parse_mode="Markdown", reply_markup=reply_markup)
+        except:
+            await query.edit_message_text("❌ **Error loading countries.**", parse_mode="Markdown")
+        return
+
+    if data_code == "back_to_services_main":
+        try:
+            res = requests.get(f'{BASE_URL}/liveaccess', headers={'mauthapi': PANEL_API_KEY}, timeout=5).json()
+            if res.get('meta', {}).get('code') == 200:
+                services_list = res.get('data', {}).get('services', [])
+                keyboard = []
+                seen_services = set()
+                
+                for s_item in services_list:
+                    sid = str(s_item.get('sid', '')).strip().upper()
+                    if sid and sid not in seen_services:
+                        seen_services.add(sid)
+                        keyboard.append([InlineKeyboardButton(sid, callback_data=f"srv_list_{sid}")])
+                
+                keyboard.append([InlineKeyboardButton("Close", callback_data="close_menu")])
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                await query.edit_message_text("📌 Select a service:", parse_mode="Markdown", reply_markup=reply_markup)
+        except:
+            await query.message.delete()
+        return
+
     if data_code == "close_menu":
         try:
             await query.message.delete()
         except:
             pass
 
+    # কান্ট্রি বাটনে ক্লিক করলে ৪টি নম্বর অ্যাসাইন করবে
     if data_code.startswith("get4_") or data_code.startswith("chg_"):
         parts = data_code.split("_")
         range_value = parts[1]
