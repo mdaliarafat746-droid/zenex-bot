@@ -100,7 +100,7 @@ def get_country_info_by_range_or_text(range_str, country_field):
 
 async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
     try:
-        res = requests.get(f'{BASE_URL}/success-otp', headers={'mauthapi': PANEL_API_KEY}, timeout=3)
+        res = requests.get(f'{BASE_URL}/success-otp', headers={'mauthapi': PANEL_API_KEY}, timeout=5)
         res1 = res.json()
         if res1.get('meta', {}).get('code') == 200:
             otps_list = res1.get('data', {}).get('otps', [])
@@ -141,23 +141,26 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
                     f"⚡ *Status: Successfully Delivered*"
                 )
                 
-                # গ্রুপের জন্য নাম্বার মাস্ক করা (যেমন: 2613**)
-                if len(clean_num) > 6:
-                    masked_num = clean_num[:5] + "**"
+                # নাম্বার ফরম্যাট (শুরু এবং শেষ ৪ ডিজিট)
+                if len(clean_num) >= 8:
+                    prefix_part = clean_num[:5] 
+                    suffix_part = clean_num[-4:] 
+                    masked_num = f"{prefix_part}****{suffix_part}"
                 else:
-                    masked_num = clean_num[:2] + "**"
+                    masked_num = clean_num[:2] + "****" + clean_num[-2:]
                 
+                # গ্রুপের জন্য নতুন ফরম্যাট
                 group_msg_text = (
-                    f"{flag} **{c_code}** | 📘 `{masked_num}` ➔ 🔑 `{otp_text}`"
+                    f"{flag} **{c_code}** | 📘 `+{masked_num}`\n"
+                    f"🔑 OTP Code: `{otp_text}`"
                 )
                 
-                # ইনলাইন বাটন (বোট ইউজারনেম @personal40bot সহ)
+                # ইনলাইন বাটন (@personal40bot সহ)
                 keyboard = [
                     [
                         InlineKeyboardButton("📢 Channel", url="https://t.me/your_channel_link"),
-                        InlineKeyboardButton(f"🔑 {otp_text}", callback_data="noop")
-                    ],
-                    [InlineKeyboardButton("📞 Get Number", url="https://t.me/personal40bot")]
+                        InlineKeyboardButton("📞 Get Number", url="https://t.me/personal40bot")
+                    ]
                 ]
                 group_reply_markup = InlineKeyboardMarkup(keyboard)
                 
