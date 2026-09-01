@@ -41,22 +41,45 @@ def get_country_info_by_range_or_text(range_str, country_field):
     c_field = str(country_field).strip().upper()
     r_str = get_clean_digits(range_str)
     
-    iso_to_name = {
-        "AM": "ARMENIA", "BD": "BANGLADESH", "IN": "INDIA", "US": "UNITED STATES", 
-        "GB": "UNITED KINGDOM", "RU": "RUSSIA", "TJ": "TAJIKISTAN", "MG": "MADAGASCAR", 
-        "UA": "UKRAINE", "GN": "GUINEA", "TG": "TOGO", "CM": "CAMEROON", 
-        "CI": "IVORY COAST", "CF": "CENTRAL AFRICAN REPUBLIC", "BJ": "BENIN", "MY": "MALAYSIA", 
-        "MA": "MOROCCO", "SD": "SUDAN", "TZ": "TANZANIA, UNITED REPUBLIC OF", "ZW": "ZIMBABWE", 
-        "DZ": "ALGERIA", "BO": "BOLIVIA", "EG": "EGYPT", "GH": "GHANA", 
-        "BR": "BRAZIL", "PK": "PAKISTAN", "ID": "INDONESIA", "VN": "VIETNAM", 
-        "PH": "PHILIPPINES", "TR": "TURKEY", "IR": "IRAN", "NP": "NEPAL", "ME": "MONTENEGRO",
-        "SL": "SIERRA LEONE"
+    country_data = {
+        "AM": ("🇦🇲", "ARMENIA"),
+        "BD": ("🇧🇩", "BANGLADESH"),
+        "IN": ("🇮🇳", "INDIA"),
+        "US": ("🇺🇸", "UNITED STATES"),
+        "GB": ("🇬🇧", "UNITED KINGDOM"),
+        "RU": ("🇷🇺", "RUSSIA"),
+        "TJ": ("🇹🇯", "TAJIKISTAN"),
+        "MG": ("🇲🇬", "MADAGASCAR"),
+        "UA": ("🇺🇦", "UKRAINE"),
+        "GN": ("🇬🇳", "GUINEA"),
+        "TG": ("🇹🇬", "TOGO"),
+        "CM": ("🇨🇲", "CAMEROON"),
+        "CI": ("🇨🇮", "IVORY COAST"),
+        "CF": ("🇨🇫", "CENTRAL AFRICAN REPUBLIC"),
+        "BJ": ("🇧🇯", "BENIN"),
+        "MY": ("🇲🇾", "MALAYSIA"),
+        "MA": ("🇲🇦", "MOROCCO"),
+        "SD": ("🇸🇩", "SUDAN"),
+        "TZ": ("🇹🇿", "TANZANIA"),
+        "ZW": ("🇿🇼", "ZIMBABWE"),
+        "DZ": ("🇩🇿", "ALGERIA"),
+        "BO": ("🇧🇴", "BOLIVIA"),
+        "EG": ("🇪🇬", "EGYPT"),
+        "GH": ("🇬🇭", "GHANA"),
+        "BR": ("🇧🇷", "BRAZIL"),
+        "PK": ("🇵🇰", "PAKISTAN"),
+        "ID": ("🇮🇩", "INDONESIA"),
+        "VN": ("🇻🇳", "VIETNAM"),
+        "PH": ("🇵🇭", "PHILIPPINES"),
+        "TR": ("🇹🇷", "TURKEY"),
+        "IR": ("🇮🇷", "IRAN"),
+        "NP": ("🇳🇵", "NEPAL"),
+        "ME": ("🇲🇪", "MONTENEGRO"),
+        "SL": ("🇸🇱", "SIERRA LEONE")
     }
 
-    if len(c_field) == 2 and c_field.isalpha():
-        flag = ''.join([chr(ord(char) + 127397) for char in c_field])
-        full_name = iso_to_name.get(c_field, c_field)
-        return flag, c_field, full_name
+    if len(c_field) == 2 and c_field in country_data:
+        return country_data[c_field][0], c_field, country_data[c_field][1]
         
     prefix_to_iso = {
         "374": "AM", "880": "BD", "91": "IN", "1": "US", "44": "GB", "7": "RU", 
@@ -65,14 +88,13 @@ def get_country_info_by_range_or_text(range_str, country_field):
         "212": "MA", "249": "SD", "255": "TZ", "263": "ZW", "213": "DZ", 
         "591": "BO", "20": "EG", "233": "GH", "55": "BR", "92": "PK",
         "62": "ID", "84": "VN", "63": "PH", "90": "TR", "98": "IR", "977": "NP",
-        "382": "ME", "232": "SL", "236": "CF"
+        "382": "ME", "232": "SL"
     }
     
     for prefix, iso in sorted(prefix_to_iso.items(), key=lambda x: len(x[0]), reverse=True):
         if r_str.startswith(prefix):
-            flag = ''.join([chr(ord(char) + 127397) for char in iso])
-            full_name = iso_to_name.get(iso, iso)
-            return flag, iso, full_name
+            if iso in country_data:
+                return country_data[iso][0], iso, country_data[iso][1]
 
     return "🌍", c_field if c_field else "INT", "INTERNATIONAL"
 
@@ -126,10 +148,10 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
                     masked_num = clean_num[:2] + "**"
                 
                 group_msg_text = (
-                    f"🌐 **{c_code}** | 📘 `{masked_num}` ➔ 🔑 `{otp_text}`"
+                    f"{flag} **{c_code}** | 📘 `{masked_num}` ➔ 🔑 `{otp_text}`"
                 )
                 
-                # ইনলাইন বাটন (বোট ইউজারনেم @personal40bot সহ)
+                # ইনলাইন বাটন (বোট ইউজারনেম @personal40bot সহ)
                 keyboard = [
                     [
                         InlineKeyboardButton("📢 Channel", url="https://t.me/your_channel_link"),
