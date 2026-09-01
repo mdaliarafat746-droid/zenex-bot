@@ -141,7 +141,7 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
                     f"⚡ *Status: Successfully Delivered*"
                 )
                 
-                # নাম্বার ফরম্যাট (যেমন: 26134**4754)
+                # নাম্বার ফরম্যাট (যেমন: 26134**6751)
                 if len(clean_num) >= 8:
                     prefix_part = clean_num[:5] 
                     suffix_part = clean_num[-4:] 
@@ -149,12 +149,12 @@ async def auto_otp_checker(context: ContextTypes.DEFAULT_TYPE):
                 else:
                     masked_num = clean_num[:2] + "**" + clean_num[-2:]
                 
-                # স্ক্রিনশটের মতো গ্রুপের মেসেজ ফরম্যাট
+                # গ্রুপের মেসেজ ফরম্যাট (আপনার স্ক্রিনশট অনুযায়ী)
                 group_msg_text = (
                     f"{flag} **{c_code}** | 📘 `{masked_num}` ➔ 🔑 `{otp_text}`"
                 )
                 
-                # ইনলাইন বাটন (স্ক্রিনশট অনুযায়ী)
+                # ইনলাইন বাটন
                 keyboard = [
                     [
                         InlineKeyboardButton("📢 Channel", url="https://t.me/your_channel_link"),
